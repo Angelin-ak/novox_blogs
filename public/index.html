@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Novox Edtech | Blog verification Dashboard</title>
+  <!-- Google Fonts: Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- Font Awesome for Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Stylesheet -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Main Dashboard App -->
+  <div id="dashboard-app" class="dashboard-container">
+    <!-- Top Nav -->
+    <header class="dashboard-header">
+      <div class="header-logo">
+        <img src="https://novoxedtechllp.com/assets/img/logo/novox-edtech-calicut-logo.png" alt="Novox Edtech" class="logo">
+        <span class="badge">Blog Verification Hub</span>
+      </div>
+      <div class="header-actions">
+        <span class="user-status"><i class="fa-solid fa-circle-check text-success"></i> Editor Mode</span>
+      </div>
+    </header>
+
+    <div class="dashboard-body">
+      <!-- Left Sidebar: Configuration Panel -->
+      <aside class="sidebar-panel glass-card">
+        <h3><i class="fa-solid fa-file-signature"></i> Blog Parameters</h3>
+        <form id="generator-form">
+          <div class="input-group">
+            <label for="topic">Article Topic</label>
+            <input type="text" id="topic" placeholder="e.g. Future of AI in Web Development" required>
+          </div>
+          
+          <div class="input-group">
+            <label for="keywords">Target Keywords (comma separated)</label>
+            <input type="text" id="keywords" placeholder="e.g. AI in web design, web development 2026" required>
+          </div>
+
+          <div class="input-group">
+            <label for="primary-keyword">Primary SEO Target Keyword</label>
+            <input type="text" id="primary-keyword" placeholder="e.g. AI in web design" required>
+          </div>
+
+          <div class="input-group">
+            <label for="landing-url">Target Landing Course URL</label>
+            <input type="text" id="landing-url" placeholder="e.g. mern-stack-course-detail.html" required>
+          </div>
+
+          <div class="row">
+            <div class="input-group">
+              <label for="category">Category</label>
+              <select id="category" required>
+                <option value="Tech & Programming">Tech & Programming</option>
+                <option value="Career & Placement">Career & Placement</option>
+                <option value="Digital Marketing">Digital Marketing</option>
+                <option value="Web Development">Web Development</option>
+                <option value="App Development">App Development</option>
+                <option value="Design">Design</option>
+                <option value="Artificial Intelligence">Artificial Intelligence</option>
+                <option value="Student & Learning">Student & Learning</option>
+              </select>
+            </div>
+
+            <div class="input-group">
+              <label for="author">Author</label>
+              <input type="text" id="author" value="Novox Expert" required>
+            </div>
+          </div>
+
+          <div class="input-group">
+            <label for="image-url">Featured Image Path</label>
+            <input type="text" id="image-url" placeholder="e.g. assets/img/blog/new/topic-slug.png" required>
+          </div>
+
+          <div class="input-group" style="flex-direction: row; align-items: center; gap: 10px; margin-bottom: 20px;">
+            <input type="checkbox" id="generate-image" checked style="width: 18px; height: 18px; cursor: pointer;">
+            <label for="generate-image" style="cursor: pointer; margin-bottom: 0; font-size: 13px; color: var(--text-color);">🎨 Generate AI Featured Image using Imagen 4</label>
+          </div>
+
+          <div class="input-group">
+            <label for="slug">URL Slug (kebab-case)</label>
+            <input type="text" id="slug" placeholder="e.g. future-of-ai-web-development" required>
+            <small class="helper-text">Auto-generated from title, but editable.</small>
+          </div>
+
+          <button type="submit" id="generate-btn" class="btn btn-primary btn-block">
+            <span id="btn-text"><i class="fa-solid fa-microchip"></i> Draft Article with AI</span>
+            <span id="btn-spinner" class="spinner hidden"></span>
+          </button>
+        </form>
+      </aside>
+
+      <!-- Main Workstation: Split Screen Editor/Preview -->
+      <main class="workstation">
+        <!-- Split view control tabs -->
+        <div class="workstation-header">
+          <div class="tab-selectors">
+            <button class="tab-btn active" data-tab="editor-tab"><i class="fa-solid fa-code"></i> Editor</button>
+            <button class="tab-btn" data-tab="preview-tab"><i class="fa-solid fa-eye"></i> Live Site Preview</button>
+          </div>
+          <button id="publish-btn" class="btn btn-success" disabled>
+            <i class="fa-solid fa-cloud-arrow-up"></i> Verify & Publish to GitHub
+          </button>
+        </div>
+
+        <div class="workstation-panes">
+          <!-- Editor Pane -->
+          <div id="editor-tab" class="pane-content active">
+            <div class="editor-grid">
+              <!-- Meta fields editing -->
+              <div class="editor-meta glass-card">
+                <div class="input-group">
+                  <label for="editor-title">Generated Title (SEO Title)</label>
+                  <input type="text" id="editor-title" placeholder="Click generate to load a title...">
+                </div>
+                <div class="input-group">
+                  <label for="editor-desc">Meta Description</label>
+                  <textarea id="editor-desc" rows="2" placeholder="Click generate to load a description..."></textarea>
+                </div>
+              </div>
+
+              <!-- Content HTML editor -->
+              <div class="editor-body glass-card">
+                <label for="editor-content">Article HTML Body</label>
+                <textarea id="editor-content" placeholder="Write or generate content HTML here..."></textarea>
+              </div>
+            </div>
+          </div>
+
+          <!-- Preview Pane -->
+          <div id="preview-tab" class="pane-content">
+            <div class="preview-container glass-card">
+              <!-- Mock site frame wrapper -->
+              <div class="mock-browser">
+                <div class="browser-bar">
+                  <div class="dots">
+                    <span class="dot red"></span>
+                    <span class="dot yellow"></span>
+                    <span class="dot green"></span>
+                  </div>
+                  <div class="address-input" id="browser-url">https://novoxedtechllp.com/blog-details.html</div>
+                </div>
+                <div class="browser-body" id="preview-body">
+                  <!-- The generated HTML will be rendered inside our site styling simulator -->
+                  <div class="preview-placeholder">
+                     <i class="fa-solid fa-newspaper placeholder-icon"></i>
+                     <p>Generate or edit content to see a live styled preview simulator here.</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Sidebar: SEO Checklist -->
+      <aside class="seo-panel glass-card">
+        <h3><i class="fa-solid fa-chart-line"></i> SEO Verification</h3>
+        
+        <div class="seo-score-container">
+          <div class="score-circle">
+            <svg viewBox="0 0 36 36" class="circular-chart">
+              <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+              <path class="circle" id="score-progress" stroke-dasharray="0, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" />
+            </svg>
+            <div class="score-text">
+              <span id="score-num">0</span>
+              <span class="score-total">/100</span>
+            </div>
+          </div>
+          <p class="score-label">Optimization Score</p>
+        </div>
+
+        <!-- Gemini Token Usage Card -->
+        <div class="token-usage-card glass-card mt-15" style="margin-top: 15px; padding: 15px; background: rgba(255, 255, 255, 0.05); border-radius: 8px; border: 1px solid rgba(255, 255, 255, 0.1);">
+          <h4 style="margin-top: 0; margin-bottom: 10px; font-size: 14px; font-weight: 600; color: var(--text-color); display: flex; align-items: center; gap: 8px;">
+            <i class="fa-solid fa-microchip" style="color: #6366f1;"></i> Gemini Usage
+          </h4>
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; font-size: 12px; color: var(--text-color);">
+            <div>
+              <span style="opacity: 0.7; display: block; font-size: 11px;">Input Tokens</span>
+              <strong id="token-input" style="font-size: 15px;">0</strong>
+            </div>
+            <div>
+              <span style="opacity: 0.7; display: block; font-size: 11px;">Output Tokens</span>
+              <strong id="token-output" style="font-size: 15px;">0</strong>
+            </div>
+          </div>
+          <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid rgba(255, 255, 255, 0.1); display: flex; justify-content: space-between; font-size: 12px;">
+            <span style="opacity: 0.7;">Total Tokens</span>
+            <strong id="token-total" style="color: #6366f1;">0</strong>
+          </div>
+        </div>
+
+        <div class="seo-checklist">
+          <h4>Checklist Requirements</h4>
+          <ul>
+            <li id="check-title" class="pending"><i class="fa-solid fa-circle-question"></i> Title (50-60 chars) <span class="val">0/60</span></li>
+            <li id="check-desc" class="pending"><i class="fa-solid fa-circle-question"></i> Meta Desc (120-160 chars) <span class="val">0/160</span></li>
+            <li id="check-content" class="pending"><i class="fa-solid fa-circle-question"></i> Length (Min 300 words) <span class="val">0</span></li>
+            <li id="check-keywords" class="pending"><i class="fa-solid fa-circle-question"></i> Keywords count (Min 3 times) <span class="val">0</span></li>
+            <li id="check-intro" class="pending"><i class="fa-solid fa-circle-question"></i> Keyword in Intro (First 3 sentences)</li>
+            <li id="check-headings" class="pending"><i class="fa-solid fa-circle-question"></i> Subheadings H2 (Min 2) <span class="val">0</span></li>
+            <li id="check-faq" class="pending"><i class="fa-solid fa-circle-question"></i> FAQ Section present</li>
+            <li id="check-conclusion" class="pending"><i class="fa-solid fa-circle-question"></i> Conclusion Section present</li>
+            <li id="check-internal-links" class="pending"><i class="fa-solid fa-circle-question"></i> Hyperlink to Course page</li>
+            <li id="check-cta" class="pending"><i class="fa-solid fa-circle-question"></i> Styled CTA button (tp-btn-inner inside tp-contact-btn)</li>
+            <li id="check-slug" class="pending"><i class="fa-solid fa-circle-question"></i> Slug format (kebab-case)</li>
+          </ul>
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <!-- Publishing Progress Modal Console Overlay -->
+  <div id="console-overlay" class="overlay">
+    <div class="glass-card console-card">
+      <div class="console-header">
+        <h3><i class="fa-solid fa-terminal"></i> Git Push Console</h3>
+        <button id="close-console-btn" class="close-btn hidden">&times;</button>
+      </div>
+      <div id="console-output" class="console-output">
+        <!-- Real-time logs go here -->
+      </div>
+      <div class="console-footer">
+        <div id="console-status" class="console-status">
+          <span class="status-indicator processing"></span>
+          <span class="status-msg">Initiating commit...</span>
+        </div>
+        <a id="live-commit-link" href="#" target="_blank" class="btn btn-secondary btn-sm hidden"><i class="fa-brands fa-github"></i> View Commit</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Canvas for Confetti -->
+  <canvas id="confetti-canvas"></canvas>
+
+  <!-- Confetti script -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+  <!-- App JS -->
+  <script src="app.js"></script>
+</body>
+</html>
