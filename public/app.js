@@ -18,8 +18,46 @@ document.addEventListener('DOMContentLoaded', () => {
   const imageUrlInput = document.getElementById('image-url');
   const generateImageInput = document.getElementById('generate-image');
   const slugInput = document.getElementById('slug');
+  const existingBlogsSelect = document.getElementById('existing-blogs-select');
+  const loadBlogBtn = document.getElementById('load-blog-btn');
+  const deleteBlogBtn = document.getElementById('delete-blog-btn');
+  const publishDateInput = document.getElementById('publish-date');
+  const imagePreviewThumbnailWrap = document.getElementById('image-preview-thumbnail-wrap');
+  const sidebarImagePreview = document.getElementById('sidebar-image-preview');
+  const regenerateImageBtn = document.getElementById('regenerate-image-btn');
 
   let generatedImageBase64 = null;
+  let loadedOriginalDate = null;
+  let loadedOriginalFilename = null;
+
+  // Date format conversion utilities
+  const parseDateStringToYYYYMMDD = (dateStr) => {
+    if (!dateStr) return '';
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return '';
+    return d.toISOString().split('T')[0];
+  };
+
+  const formatYYYYMMDDToDateString = (yyyyMMDD) => {
+    if (!yyyyMMDD) return '';
+    const parts = yyyyMMDD.split('-');
+    if (parts.length !== 3) return '';
+    const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: '2-digit'
+    });
+  };
+
+  const getTodayDateString = () => {
+    return new Date().toISOString().split('T')[0];
+  };
+
+  // Set default publish date to today on load
+  if (publishDateInput) {
+    publishDateInput.value = getTodayDateString();
+  }
 
   const generateBtn = document.getElementById('generate-btn');
   const btnText = document.getElementById('btn-text');
@@ -116,6 +154,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // Auto-fill parameters as user writes topic (Smart Auto-mapping)
   topicInput.addEventListener('input', () => {
+    if (loadedOriginalFilename) return;
     if (!slugInput.value || slugInput.dataset.edited !== 'true') {
       slugInput.value = generateSlugString(topicInput.value);
     }
@@ -231,8 +270,10 @@ document.addEventListener('DOMContentLoaded', () => {
       editorDesc.value = data.description;
       editorContent.value = data.content_html;
       
-      // Auto-set slug
-      slugInput.value = generateSlugString(data.title);
+      // Auto-set slug only if creating a new post
+      if (!loadedOriginalFilename) {
+        slugInput.value = generateSlugString(data.title);
+      }
 
       // Auto-detect course URL and category based on the generated title
       const { detectedUrl, detectedCategory } = autoMapFields(data.title);
@@ -257,13 +298,24 @@ document.addEventListener('DOMContentLoaded', () => {
       // Handle AI image response
       if (data.image_base64) {
         generatedImageBase64 = data.image_base64;
+        
+        const isJpeg = generatedImageBase64.startsWith('/9j/');
+        const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
+        
+        sidebarImagePreview.src = `data:${mimeType};base64,${generatedImageBase64}`;
+        imagePreviewThumbnailWrap.style.display = 'block';
+        regenerateImageBtn.style.display = 'block';
       } else {
         generatedImageBase64 = null;
+        imagePreviewThumbnailWrap.style.display = 'none';
+        regenerateImageBtn.style.display = 'none';
       }
 
-      // Update Featured Image Path to match the generated slug name
-      if (!imageUrlInput.value || imageUrlInput.dataset.edited !== 'true' || imageUrlInput.value === 'assets/img/blog/new/generic_tech.png') {
-        imageUrlInput.value = `assets/img/blog/new/${slugInput.value}.png`;
+      // Update Featured Image Path to match the generated slug name only if creating a new post
+      if (!loadedOriginalFilename) {
+        if (!imageUrlInput.value || imageUrlInput.dataset.edited !== 'true' || imageUrlInput.value === 'assets/img/blog/new/generic_tech.png') {
+          imageUrlInput.value = `assets/img/blog/new/${slugInput.value}.png`;
+        }
       }
 
       // Switch to editor view
@@ -276,6 +328,283 @@ document.addEventListener('DOMContentLoaded', () => {
       generateBtn.disabled = false;
       btnText.innerHTML = '<i class="fa-solid fa-microchip"></i> Draft Article with AI';
       btnSpinner.classList.add('hidden');
+    }
+  });
+
+  // -------------------------------------------------------------
+  // Section 2b: Existing Blog Loader & Hydration
+  // -------------------------------------------------------------
+  const slugToTitle = (slug) => {
+    return slug
+      .replace('.html', '')
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
+  const populateExistingBlogsDropdown = async () => {
+    if (!existingBlogsSelect) return;
+    try {
+      const res = await fetch(`/api/blogs?_t=${Date.now()}`);
+      if (!res.ok) throw new Error('Failed to fetch existing blogs');
+      const blogs = await res.json();
+      
+      existingBlogsSelect.innerHTML = '<option value="">-- Create New Post --</option>';
+      
+      blogs.forEach(blog => {
+        const option = document.createElement('option');
+        option.value = blog.filename;
+        option.textContent = slugToTitle(blog.filename);
+        existingBlogsSelect.appendChild(option);
+      });
+    } catch (err) {
+      console.error('Error populating existing blogs dropdown:', err);
+    }
+  };
+
+  loadBlogBtn.addEventListener('click', async () => {
+    const filename = existingBlogsSelect.value;
+    if (!filename) {
+      alert('Please select an existing blog post to load.');
+      return;
+    }
+
+    loadBlogBtn.disabled = true;
+    const originalText = loadBlogBtn.innerHTML;
+    loadBlogBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
+
+    try {
+      const res = await fetch(`/api/blogs/${encodeURIComponent(filename)}?_t=${Date.now()}`);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to fetch blog details');
+      }
+
+      const data = await res.json();
+
+      // Populate Parameters Panel
+      topicInput.value = data.title;
+      slugInput.value = data.slug;
+      slugInput.disabled = true; // Lock the slug input field so it cannot be edited
+      // Check if data.category exists in categorySelect options, otherwise dynamically add it to keep it
+      let hasCategoryOption = false;
+      for (let i = 0; i < categorySelect.options.length; i++) {
+        if (categorySelect.options[i].value === data.category) {
+          hasCategoryOption = true;
+          break;
+        }
+      }
+      if (!hasCategoryOption && data.category) {
+        const opt = document.createElement('option');
+        opt.value = data.category;
+        opt.textContent = data.category;
+        categorySelect.appendChild(opt);
+      }
+      categorySelect.value = data.category;
+      landingUrlInput.value = data.landing_url;
+      imageUrlInput.value = data.image;
+      authorInput.value = data.author;
+      primaryKeywordInput.value = data.keyword || '';
+      keywordsInput.value = data.keyword || '';
+      publishDateInput.value = parseDateStringToYYYYMMDD(data.date) || getTodayDateString();
+
+      // Set flags to prevent automatic overwrite by topicInput keyups
+      slugInput.dataset.edited = 'true';
+      landingUrlInput.dataset.edited = 'true';
+      imageUrlInput.dataset.edited = 'true';
+      categorySelect.dataset.edited = 'true';
+      primaryKeywordInput.dataset.edited = 'true';
+      publishDateInput.dataset.edited = 'true';
+
+      // Populate Editor Fields
+      editorTitle.value = data.title;
+      editorDesc.value = data.description;
+      editorContent.value = data.content_html;
+
+      // Switch view and update verification check
+      switchTab('editor-tab');
+      runSEOChecklist();
+
+      // Reset base64 image since we are editing an existing post with an existing image path
+      generatedImageBase64 = null;
+      loadedOriginalFilename = filename;
+
+      // Save original date
+      loadedOriginalDate = data.date || null;
+
+      // Populate image thumbnail preview from GitHub
+      if (data.raw_image_url) {
+        sidebarImagePreview.src = data.raw_image_url;
+        imagePreviewThumbnailWrap.style.display = 'block';
+        regenerateImageBtn.style.display = 'block';
+      } else {
+        imagePreviewThumbnailWrap.style.display = 'none';
+        regenerateImageBtn.style.display = 'none';
+      }
+      
+      if (deleteBlogBtn) deleteBlogBtn.style.display = 'block';
+    } catch (err) {
+      alert('Failed to load blog: ' + err.message);
+    } finally {
+      loadBlogBtn.disabled = false;
+      loadBlogBtn.innerHTML = originalText;
+    }
+  });
+
+  existingBlogsSelect.addEventListener('change', () => {
+    if (!existingBlogsSelect.value) {
+      // User switched back to Create mode
+      loadedOriginalDate = null;
+      loadedOriginalFilename = null;
+      generatorForm.reset();
+      slugInput.disabled = false; // Re-enable the slug input field
+      slugInput.dataset.edited = 'false';
+      landingUrlInput.dataset.edited = 'false';
+      imageUrlInput.dataset.edited = 'false';
+      categorySelect.dataset.edited = 'false';
+      primaryKeywordInput.dataset.edited = 'false';
+      publishDateInput.dataset.edited = 'false';
+      publishDateInput.value = getTodayDateString();
+      imagePreviewThumbnailWrap.style.display = 'none';
+      regenerateImageBtn.style.display = 'none';
+      if (deleteBlogBtn) deleteBlogBtn.style.display = 'none';
+      sidebarImagePreview.src = '';
+      editorTitle.value = '';
+      editorDesc.value = '';
+      editorContent.value = '';
+      runSEOChecklist();
+    }
+  });
+
+  if (deleteBlogBtn) {
+    deleteBlogBtn.addEventListener('click', async () => {
+      const filename = existingBlogsSelect.value;
+      if (!filename) return;
+
+      const confirmDelete = confirm(`Are you sure you want to permanently delete the blog post "${filename}"?\n\nThis will remove the HTML file, its sitemap.xml entry, and delete its card from blogs.html on GitHub.`);
+      if (!confirmDelete) return;
+
+      // Open Console overlay to show progress (similar to publishBtn click)
+      consoleOverlay.classList.add('active');
+      consoleOutput.innerHTML = '';
+      closeConsoleBtn.classList.add('hidden');
+      liveCommitLink.classList.add('hidden');
+      
+      consoleStatus.querySelector('.status-indicator').className = 'status-indicator processing';
+      consoleStatus.querySelector('.status-msg').textContent = 'Authenticating deletion transaction...';
+
+      writeLog(`Initializing deletion for blog: "${filename}"...`, 'info');
+
+      try {
+        writeLog('Sending deletion transaction to GitHub API...', 'info');
+        const res = await fetch(`/api/blogs/${encodeURIComponent(filename)}/delete`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${passcode}`
+          }
+        });
+
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Server deletion failed');
+        }
+
+        const data = await res.json();
+
+        writeLog(`API: Filtered card "${filename}" from blogs.html grid successfully.`, 'info');
+        writeLog(`API: Cleaned sitemap.xml location entry.`, 'info');
+        writeLog(`API: Added deletion command for path "${filename}" to Git Data tree.`, 'info');
+        writeLog('GitHub: Combined updates into single transactional tree.', 'success');
+        writeLog(`GitHub: Created delete commit SHA ${data.commit_sha.substring(0, 7)}.`, 'success');
+        writeLog('GitHub: Advanced heads/main branch reference successfully.', 'success');
+        writeLog('Blog post deleted successfully from GitHub!', 'success');
+
+        // Reset state and switch back to Create mode
+        loadedOriginalDate = null;
+        loadedOriginalFilename = null;
+        generatorForm.reset();
+        slugInput.dataset.edited = 'false';
+        landingUrlInput.dataset.edited = 'false';
+        imageUrlInput.dataset.edited = 'false';
+        categorySelect.dataset.edited = 'false';
+        primaryKeywordInput.dataset.edited = 'false';
+        publishDateInput.dataset.edited = 'false';
+        publishDateInput.value = getTodayDateString();
+        imagePreviewThumbnailWrap.style.display = 'none';
+        regenerateImageBtn.style.display = 'none';
+        deleteBlogBtn.style.display = 'none';
+        sidebarImagePreview.src = '';
+        editorTitle.value = '';
+        editorDesc.value = '';
+        editorContent.value = '';
+        
+        // Refresh dropdown
+        await populateExistingBlogsDropdown();
+        runSEOChecklist();
+
+        consoleStatus.querySelector('.status-indicator').className = 'status-indicator success';
+        consoleStatus.querySelector('.status-msg').textContent = 'Blog Deleted Successfully!';
+        
+        liveCommitLink.href = data.commit_url;
+        liveCommitLink.classList.remove('hidden');
+
+      } catch (err) {
+        writeLog(`ERROR: ${err.message}`, 'error');
+        consoleStatus.querySelector('.status-indicator').className = 'status-indicator failed';
+        consoleStatus.querySelector('.status-msg').textContent = 'Deletion failed.';
+      } finally {
+        closeConsoleBtn.classList.remove('hidden');
+      }
+    });
+  }
+
+  regenerateImageBtn.addEventListener('click', async () => {
+    const title = editorTitle.value.trim() || topicInput.value.trim();
+    if (!title) {
+      alert('Please load a blog first or enter a title to use as the image prompt.');
+      return;
+    }
+
+    regenerateImageBtn.disabled = true;
+    const originalBtnText = regenerateImageBtn.innerHTML;
+    regenerateImageBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating...';
+
+    try {
+      const res = await fetch('/api/generate-image-only', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${passcode}`
+        },
+        body: JSON.stringify({ title })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Server image generation failed');
+      }
+
+      const data = await res.json();
+      if (data.image_base64) {
+        generatedImageBase64 = data.image_base64;
+        
+        const isJpeg = generatedImageBase64.startsWith('/9j/');
+        const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
+        
+        sidebarImagePreview.src = `data:${mimeType};base64,${generatedImageBase64}`;
+        imagePreviewThumbnailWrap.style.display = 'block';
+        
+        // Update preview tab if it's currently open
+        updatePreviewIfActive();
+        
+        alert('AI Featured Image regenerated successfully! It will be committed when you publish.');
+      }
+    } catch (err) {
+      alert('Failed to generate image: ' + err.message);
+    } finally {
+      regenerateImageBtn.disabled = false;
+      regenerateImageBtn.innerHTML = originalBtnText;
     }
   });
 
@@ -320,13 +649,39 @@ document.addEventListener('DOMContentLoaded', () => {
 
     browserUrl.textContent = `https://novoxedtechllp.com/${slug}.html`;
 
-    const formattedDate = new Date().toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    // Read the date from the date input picker and format it for the preview
+    const selectedDate = publishDateInput.value;
+    let formattedDate = '';
+    if (selectedDate) {
+      const parts = selectedDate.split('-');
+      if (parts.length === 3) {
+        const d = new Date(parseInt(parts[0]), parseInt(parts[1]) - 1, parseInt(parts[2]));
+        formattedDate = d.toLocaleDateString('en-US', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric'
+        });
+      }
+    }
+    if (!formattedDate) {
+      formattedDate = new Date().toLocaleDateString('en-US', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    }
 
-    const imgSrc = generatedImageBase64 ? `data:image/png;base64,${generatedImageBase64}` : `https://novoxedtechllp.com/${image}`;
+    const isJpeg = generatedImageBase64 && generatedImageBase64.startsWith('/9j/');
+    const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
+    
+    let imgSrc = '';
+    if (generatedImageBase64) {
+      imgSrc = `data:${mimeType};base64,${generatedImageBase64}`;
+    } else if (image && (image.startsWith('assets/') || (!image.startsWith('http') && !image.startsWith('data:')))) {
+      imgSrc = `/api/blogs-image?path=${encodeURIComponent(image)}`;
+    } else {
+      imgSrc = image || 'https://placehold.co/800x450/e2e8f0/64748b?text=Featured+Image';
+    }
 
     // Simulated Styled HTML structure matching the real site (with visual representation of headers, custom styles, spacing)
     previewBody.innerHTML = `
@@ -694,6 +1049,22 @@ document.addEventListener('DOMContentLoaded', () => {
     el.addEventListener('input', runSEOChecklist);
   });
 
+  // Real-time preview updating on parameter changes
+  const isPreviewTabActive = () => {
+    const previewTabBtn = document.querySelector('.tab-btn[data-tab="preview-tab"]');
+    return previewTabBtn && previewTabBtn.classList.contains('active');
+  };
+
+  const updatePreviewIfActive = () => {
+    if (isPreviewTabActive()) {
+      renderSimulatorPreview();
+    }
+  };
+
+  if (publishDateInput) publishDateInput.addEventListener('change', updatePreviewIfActive);
+  if (authorInput) authorInput.addEventListener('input', updatePreviewIfActive);
+  if (categorySelect) categorySelect.addEventListener('change', updatePreviewIfActive);
+
   // -------------------------------------------------------------
   // Section 5: Verify & Publish (Git Commits via Backend)
   // -------------------------------------------------------------
@@ -731,8 +1102,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const keyword = primaryKeywordInput.value.trim();
     const landing_url = landingUrlInput.value.trim();
 
-    // Date in format: "May 10, 2026"
-    const dateFormatted = new Date().toLocaleDateString('en-US', {
+    // Use the value of the publish-date date picker, formatted for the website
+    const dateFormatted = formatYYYYMMDDToDateString(publishDateInput.value) || new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: '2-digit'
@@ -798,7 +1169,8 @@ document.addEventListener('DOMContentLoaded', () => {
           slug,
           landing_url,
           keyword,
-          image_base64: generatedImageBase64
+          image_base64: generatedImageBase64,
+          original_filename: loadedOriginalFilename
         })
       });
 
@@ -817,6 +1189,9 @@ document.addEventListener('DOMContentLoaded', () => {
       writeLog(`GitHub: Created commit SHA ${data.commit_sha.substring(0, 7)}.`, 'success');
       writeLog('GitHub: Advanced heads/main branch reference successfully.', 'success');
       writeLog('Website publication committed successfully!', 'success');
+
+      // Refresh the dropdown listing in case a new file was created or renamed
+      populateExistingBlogsDropdown();
 
       // Reset image state
       generatedImageBase64 = null;
@@ -850,6 +1225,7 @@ document.addEventListener('DOMContentLoaded', () => {
     consoleOverlay.classList.remove('active');
   });
 
-  // Initialize Auth Check on Boot
+  // Initialize Auth Check & Dropdown on Boot
   initAuth();
+  populateExistingBlogsDropdown();
 });

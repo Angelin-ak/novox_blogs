@@ -154,6 +154,7 @@ label {
 
 input[type="text"],
 input[type="password"],
+input[type="date"],
 select,
 textarea {
   background: rgba(15, 23, 42, 0.5);
