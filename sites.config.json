@@ -44,8 +44,8 @@
       "ctaTextPattern": ["enroll", "contact", "register", "join", "start", "apply", "now", "us", "course", "program", "career"]
     },
     "theme": {
-      "background": "#0f0f15",
-      "cardBackground": "rgba(255, 255, 255, 0.03)",
+      "background": "#ffffff",
+      "cardBackground": "rgba(0, 0, 0, 0.02)",
       "primaryColor": "#3b82f6",
       "glowColor": "rgba(59, 130, 246, 0.15)",
       "accentColor": "#60a5fa"

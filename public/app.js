@@ -161,7 +161,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       --primary-color: ${activeSiteConfig.theme.primaryColor};
       --primary-glow: ${activeSiteConfig.theme.glowColor};
       --secondary-color: ${activeSiteConfig.theme.accentColor};
-      --bg-color: ${activeSiteConfig.theme.background};
     }
   `;
   document.head.appendChild(styleEl);
@@ -436,7 +435,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       blogs.forEach(blog => {
         const option = document.createElement('option');
         option.value = blog.filename;
-        option.textContent = slugToTitle(blog.filename);
+        option.textContent = blog.title || slugToTitle(blog.filename);
         existingBlogsSelect.appendChild(option);
       });
     } catch (err) {
@@ -726,6 +725,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     const image = imageUrlInput.value;
     const slug = slugInput.value || 'untitled-post';
 
+    const isCore = activeSiteId === 'novox_core';
+    const isDarkTheme = activeSiteConfig.theme.background !== '#ffffff';
+    previewBody.style.background = isCore ? '#000000' : '#ffffff';
+    previewBody.style.padding = '0';
+
     browserUrl.textContent = `${activeSiteConfig.domain}/${slug}.html`;
 
     const selectedDate = publishDateInput.value;
@@ -761,14 +765,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       imgSrc = image || 'https://placehold.co/800x450/e2e8f0/64748b?text=Featured+Image';
     }
 
-    const isCore = activeSiteId === 'novox_core';
-
     // Render themed mock site frame wrapper
     previewBody.innerHTML = `
       <style>
         .sim-wrapper {
-          background-color: ${isCore ? '#000000' : '#ffffff'};
-          color: ${isCore ? '#e2e8f0' : '#334155'};
+          background-color: ${activeSiteConfig.theme.background || '#ffffff'};
+          color: ${isDarkTheme ? '#cbd5e1' : '#334155'};
           font-family: 'Inter', system-ui, -apple-system, sans-serif;
           padding: 24px;
           min-height: 100%;
@@ -777,23 +779,23 @@ document.addEventListener('DOMContentLoaded', async () => {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 2px solid ${isCore ? '#1e293b' : '#efefef'};
+          border-bottom: 2px solid ${isDarkTheme ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0'};
           padding-bottom: 12px;
           margin-bottom: 24px;
         }
-        .sim-logo { font-size: 20px; font-weight: 800; color: ${isCore ? '#10b981' : '#1e3a8a'}; }
-        .sim-nav { display: flex; gap: 15px; font-size: 13px; color: ${isCore ? '#94a3b8' : '#666'}; font-weight: 600; }
+        .sim-logo { font-size: 20px; font-weight: 800; color: ${activeSiteConfig.theme.primaryColor}; }
+        .sim-nav { display: flex; gap: 15px; font-size: 13px; color: ${isDarkTheme ? '#94a3b8' : '#64748b'}; font-weight: 600; }
         
         .sim-breadcrumb {
           font-size: 12px;
-          color: ${isCore ? '#64748b' : '#888'};
+          color: #64748b;
           margin-bottom: 12px;
         }
-        .sim-breadcrumb span { color: ${isCore ? '#10b981' : '#2563eb'}; }
+        .sim-breadcrumb span { color: ${activeSiteConfig.theme.primaryColor}; }
         .sim-title {
           font-size: 32px;
           font-weight: 800;
-          color: ${isCore ? '#ffffff' : '#0f172a'};
+          color: ${isDarkTheme ? '#ffffff' : '#0f172a'};
           line-height: 1.3;
           margin-bottom: 16px;
         }
@@ -804,37 +806,37 @@ document.addEventListener('DOMContentLoaded', async () => {
           object-fit: cover;
           border-radius: 12px;
           margin-bottom: 24px;
-          box-shadow: 0 4px 20px rgba(0,0,0, ${isCore ? '0.5' : '0.08'});
+          box-shadow: ${isDarkTheme ? '0 4px 20px rgba(0,0,0, 0.5)' : '0 4px 20px rgba(0,0,0, 0.08)'};
         }
         
         .sim-meta {
           display: flex;
           gap: 20px;
           font-size: 13px;
-          color: ${isCore ? '#94a3b8' : '#64748b'};
-          border-bottom: 1px solid ${isCore ? '#1e293b' : '#e2e8f0'};
+          color: ${isDarkTheme ? '#94a3b8' : '#64748b'};
+          border-bottom: 1px solid ${isDarkTheme ? 'rgba(255, 255, 255, 0.08)' : '#e2e8f0'};
           padding-bottom: 16px;
           margin-bottom: 24px;
         }
-        .sim-meta i { color: ${isCore ? '#10b981' : '#2563eb'}; margin-right: 6px; }
+        .sim-meta i { color: ${activeSiteConfig.theme.primaryColor}; margin-right: 6px; }
         
         .sim-content {
           font-size: 16px;
           line-height: 1.8;
-          color: ${isCore ? '#cbd5e1' : '#334155'};
+          color: ${isDarkTheme ? '#cbd5e1' : '#334155'};
         }
         .sim-content p { margin-bottom: 20px; }
         .sim-content h2, .sim-content h4 {
           font-size: 24px;
           font-weight: 700;
-          color: ${isCore ? '#ffffff' : '#0f172a'};
+          color: ${isDarkTheme ? '#ffffff' : '#0f172a'};
           margin-top: 32px;
           margin-bottom: 16px;
         }
         .sim-content h3, .sim-content h5 {
           font-size: 20px;
           font-weight: 600;
-          color: ${isCore ? '#f1f5f9' : '#1e293b'};
+          color: ${isDarkTheme ? '#f1f5f9' : '#1e293b'};
           margin-top: 24px;
           margin-bottom: 12px;
         }
@@ -856,7 +858,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
         .sim-content li::before {
           content: "•";
-          color: #10b981;
+          color: ${activeSiteConfig.theme.primaryColor};
           font-weight: bold;
           display: inline-block; 
           width: 1em;
@@ -875,17 +877,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           font-size: 16px;
           font-weight: 600;
           color: #ffffff !important;
-          background-color: ${isCore ? '#10b981' : '#2563eb'};
+          background-color: ${activeSiteConfig.theme.primaryColor};
           padding: 12px 28px;
           border-radius: 8px;
           text-decoration: none !important;
-          box-shadow: 0 4px 12px ${isCore ? 'rgba(16, 185, 129, 0.2)' : 'rgba(37, 99, 235, 0.2)'};
+          box-shadow: 0 4px 12px ${activeSiteConfig.theme.glowColor};
           transition: all 0.2s ease-in-out;
         }
         .tp-btn-inner:hover, .rr-btn:hover {
-          background-color: ${isCore ? '#059669' : '#1d4ed8'};
+          background-color: ${activeSiteConfig.theme.accentColor};
           transform: translateY(-2px);
-          box-shadow: 0 6px 16px ${isCore ? 'rgba(16, 185, 129, 0.35)' : 'rgba(37, 99, 235, 0.35)'};
+          box-shadow: 0 6px 16px ${activeSiteConfig.theme.glowColor};
         }
       </style>
       

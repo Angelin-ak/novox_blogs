@@ -170,7 +170,13 @@ Do NOT output a simple inline text anchor for the main CTA. It must use the exac
 
 Ensure the response matches application/json mime-type and contains valid, parsing JSON.`;
 
-    const contentModels = ['gemini-2.5-flash', 'gemini-2.0-flash', 'gemini-1.5-flash'];
+    const contentModels = [
+      'gemini-2.5-flash',
+      'gemini-2.5-pro',
+      'gemini-2.0-flash-001',
+      'gemini-2.0-flash-lite',
+      'gemini-3.5-flash'
+    ];
     let response;
     let lastErr;
     let selectedModel = '';
@@ -518,45 +524,52 @@ function parseBlogCardForDetails(blogsHtml, filename, siteId) {
   let date = '';
   let imageFromBlogsHtml = '';
 
-  const escapedFilename = filename.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+  const fileIndex = blogsHtml.indexOf(filename);
+  if (fileIndex !== -1) {
+    // Look a bit backward in case the image tag or card wrapper is slightly before the filename anchor
+    const chunkStart = Math.max(0, fileIndex - 300);
+    const cardChunk = blogsHtml.substring(chunkStart, fileIndex + 1500);
 
-  if (siteId === 'novox_core') {
-    const cardRegex = new RegExp(
-      `<a\\s+[^>]*href=["']${escapedFilename}["'][\\s\\S]*?<span\\s+class=["']name["'][^>]*>By\\s*<span>([\\s\\S]*?)<\\/span><\\/span>\\s*<span\\s+class=["']date has-left-line["'][^>]*>([\\s\\S]*?)<\\/span>`,
-      'i'
-    );
-    const cardMatch = blogsHtml.match(cardRegex);
-    if (cardMatch) {
-      author = cardMatch[1].trim();
-      date = cardMatch[2].trim();
-    }
-
-    const imgCardRegex = new RegExp(
-      `<a\\s+[^>]*href=["']${escapedFilename}["'][\\s\\S]*?<img\\s+[^>]*src=["']([^"']+)["']`,
-      'i'
-    );
-    const imgCardMatch = blogsHtml.match(imgCardRegex);
-    if (imgCardMatch) {
-      imageFromBlogsHtml = imgCardMatch[1].trim();
-    }
-  } else {
-    const cardRegex = new RegExp(
-      `<div\\s+class=["'][^"']*grid-item[^"']*["']>[\\s\\S]*?href=["']${escapedFilename}["'][\\s\\S]*?<span\\s+class=["']modern-date author-span["'][^>]*>([\\s\\S]*?)<\\/span>\\s*<span\\s+class=["']modern-date["'][^>]*>([\\s\\S]*?)<\\/span>`,
-      'i'
-    );
-    const cardMatch = blogsHtml.match(cardRegex);
-    if (cardMatch) {
-      author = cardMatch[1].trim();
-      date = cardMatch[2].trim();
-    }
-
-    const imgCardRegex = new RegExp(
-      `<div\\s+class=["'][^"']*grid-item[^"']*["']>[\\s\\S]*?href=["']${escapedFilename}["'][\\s\\S]*?<img\\s+[^>]*src=["']([^"']+)["']`,
-      'i'
-    );
-    const imgCardMatch = blogsHtml.match(imgCardRegex);
-    if (imgCardMatch) {
-      imageFromBlogsHtml = imgCardMatch[1].trim();
+    if (siteId === 'novox_core') {
+      const authorMatch = cardChunk.match(/<span\s+class=["']name["'][^>]*>By\s*<span>([\s\S]*?)<\/span>/i);
+      if (authorMatch) {
+        author = authorMatch[1].trim();
+      }
+      
+      const dateMatch = cardChunk.match(/<span\s+class=["']date has-left-line["'][^>]*>([\s\S]*?)<\/span>/i);
+      if (dateMatch) {
+        date = dateMatch[1].trim();
+      }
+      
+      const imgMatch = cardChunk.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
+      if (imgMatch) {
+        imageFromBlogsHtml = imgMatch[1].trim();
+      }
+    } else {
+      // EdTech
+      const authorMatch = cardChunk.match(/<span\s+class=["']modern-date author-span["'][^>]*>([\s\S]*?)<\/span>/i);
+      if (authorMatch) {
+        author = authorMatch[1].trim();
+      }
+      
+      const dateMatch = cardChunk.match(/<span\s+class=["']modern-date["'][^>]*>([\s\S]*?)<\/span>/i);
+      if (dateMatch) {
+        const matchedVal = dateMatch[1].trim();
+        if (authorMatch && matchedVal === author) {
+          // Find the second modern-date span which represents the date
+          const secondMatch = cardChunk.substring(cardChunk.indexOf(dateMatch[0]) + dateMatch[0].length).match(/<span\s+class=["']modern-date["'][^>]*>([\s\S]*?)<\/span>/i);
+          if (secondMatch) {
+            date = secondMatch[1].trim();
+          }
+        } else {
+          date = matchedVal;
+        }
+      }
+      
+      const imgMatch = cardChunk.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
+      if (imgMatch) {
+        imageFromBlogsHtml = imgMatch[1].trim();
+      }
     }
   }
 
@@ -636,7 +649,27 @@ app.post('/api/publish', authenticate, async (req, res) => {
       }
     }
     if (!isEdit && !hasInternalLink) {
-      return res.status(400).json({ error: `Validation Error: Core structural mismatch. Relevant text within the blog body must seamlessly hyperlink back to matching pages.` });
+      // Auto-inject a link on the first occurrence of a relevant keyword to heal the page structure
+      const keywordsToLink = [
+        'web development', 'software development', 'digital marketing', 'web design',
+        'technology services', 'agency services', 'software agency', 'development services',
+        'technology solutions', 'digital agency', 'technology', 'development', 'marketing', 'design'
+      ];
+      let linked = false;
+      for (const kw of keywordsToLink) {
+        const regex = new RegExp(`\\b(${kw})\\b`, 'i');
+        if (regex.test(content_html)) {
+          finalContentHtml = content_html.replace(regex, `<a href="{{COURSE_URL}}">$1</a>`);
+          hasInternalLink = true;
+          linked = true;
+          break;
+        }
+      }
+      if (!linked) {
+        // Fallback: append a clean footer link
+        finalContentHtml = content_html + `\n<p>To learn more, check out our <a href="{{COURSE_URL}}">services</a>.</p>`;
+        hasInternalLink = true;
+      }
     }
 
     // CTA check matching the company's styled button
@@ -1069,7 +1102,12 @@ app.get('/api/blogs-image', async (req, res) => {
       return res.status(500).json({ error: 'GitHub Integration is not configured for the active website.' });
     }
 
-    const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${imagePath}`;
+    let normalizedPath = imagePath;
+    if (siteId === 'novox_core' && imagePath.toLowerCase().startsWith('images/')) {
+      normalizedPath = imagePath.replace(/^images\//i, 'Images/');
+    }
+
+    const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${normalizedPath}`;
     console.log(`Proxying image for ${siteId} from GitHub raw: ${url}...`);
     
     const response = await fetch(url, {
@@ -1117,45 +1155,62 @@ app.get('/api/blogs', async (req, res) => {
     }
 
     const octokit = new Octokit({ auth: token });
-    console.log(`Listing files in repo root: ${owner}/${repo} for site: ${siteId}...`);
-    const filesRes = await octokit.repos.getContent({
+    const gridPage = config.files.gridPage;
+    console.log(`Listing blogs from grid page: ${gridPage} for site: ${siteId}...`);
+    
+    const blogsRes = await octokit.repos.getContent({
       owner,
       repo,
-      path: '',
+      path: gridPage,
       ref: branch,
       headers: {
         'If-None-Match': '',
         'Cache-Control': 'no-cache'
       }
     });
+
+    const blogsHtml = Buffer.from(blogsRes.data.content, 'base64').toString('utf8');
+    const gridMarker = config.layout.gridMarker;
+    const gridIndex = blogsHtml.indexOf(gridMarker);
+    if (gridIndex === -1) {
+      return res.json([]);
+    }
     
-    if (!Array.isArray(filesRes.data)) {
+    let depth = 1;
+    let scanPos = gridIndex + gridMarker.length;
+    let gridEndPos = -1;
+    
+    while (scanPos < blogsHtml.length) {
+      const nextOpen = blogsHtml.indexOf('<div', scanPos);
+      const nextClose = blogsHtml.indexOf('</div', scanPos);
+      
+      if (nextOpen === -1 && nextClose === -1) break;
+      
+      if (nextOpen !== -1 && (nextClose === -1 || nextOpen < nextClose)) {
+        depth++;
+        scanPos = nextOpen + 4;
+      } else {
+        depth--;
+        scanPos = nextClose + 6;
+        if (depth === 0) {
+          gridEndPos = scanPos;
+          break;
+        }
+      }
+    }
+    
+    if (gridEndPos === -1) {
       return res.json([]);
     }
 
-    const excludeFiles = [
-      'index.html', 'about.html', 'contact.html', 'blogs.html', 'blog.html', 'courses.html', 
-      'placement.html', 'gallery.html', 'instructor.html', 'blog-template-v2.html', 
-      'blog-template.html', 'terms-conditions.html', 'terms-and-conditions.html', 'temp_cards.html', 'full-stack-roadmap.html',
-      'startup-agency.html', '404.html', 'services.html', 'team.html', 'careers.html',
-      'sitemap.xml', 'package.json', 'package-lock.json', '.gitignore'
-    ];
-
-    const blogs = filesRes.data
-      .filter(file => {
-        const name = file.name.toLowerCase();
-        return (
-          file.type === 'file' &&
-          name.endsWith('.html') &&
-          !excludeFiles.includes(name) &&
-          !name.endsWith('-course-detail.html')
-        );
-      })
-      .map(file => ({
-        filename: file.name,
-        sha: file.sha,
-        size: file.size
-      }));
+    const gridContent = blogsHtml.substring(gridIndex + gridMarker.length, gridEndPos - 6);
+    const cards = parseBlogCards(gridContent, siteId);
+    
+    const blogs = cards.map(c => ({
+      filename: c.filename,
+      title: c.title,
+      dateStr: c.dateStr
+    }));
 
     res.json(blogs);
   } catch (error) {
@@ -1311,18 +1366,55 @@ app.get('/api/blogs/:filename', async (req, res) => {
       if (commentStart !== -1 && commentEnd !== -1 && commentEnd > commentStart) {
         content_html = contentNormalized.substring(commentStart + '<!-- BLOG_CONTENT_START -->'.length, commentEnd).trim();
       } else {
-        let containerIndex = contentNormalized.indexOf('<div class="container large">');
-        if (containerIndex === -1) {
-          containerIndex = contentNormalized.indexOf('<div class="container large"><br>');
+        // Find all occurrences of the container large div to filter out header/footer/title areas
+        let occurrences = [];
+        let pos = 0;
+        while (true) {
+          let idx = contentNormalized.indexOf('<div class="container large">', pos);
+          if (idx === -1) {
+            idx = contentNormalized.indexOf('<div class="container large"><br>', pos);
+          }
+          if (idx === -1) break;
+          occurrences.push(idx);
+          pos = idx + 1;
         }
+
+        let containerIndex = -1;
+        for (const idx of occurrences) {
+          const chunk = contentNormalized.substring(idx, idx + 600);
+          if (chunk.includes('header-area-2__inner') || chunk.includes('main-menu')) {
+            continue;
+          }
+          if (chunk.includes('page-title-area-inner') || chunk.includes('page-title-wrapper') || chunk.includes('class="page-title')) {
+            continue;
+          }
+          if (chunk.includes('footer-top-inner') || chunk.includes('class="footer-top-inner"')) {
+            continue;
+          }
+          containerIndex = idx;
+          break;
+        }
+
         if (containerIndex !== -1) {
-          const footerInnerIndex = contentNormalized.indexOf('<div class="footer-top-inner">', containerIndex);
-          if (footerInnerIndex !== -1) {
-            let extracted = contentNormalized.substring(containerIndex, footerInnerIndex).trim();
+          let contentEndIndex = contentNormalized.indexOf('</main>', containerIndex);
+          if (contentEndIndex === -1) {
+            contentEndIndex = contentNormalized.indexOf('<footer', containerIndex);
+          }
+          if (contentEndIndex === -1) {
+            contentEndIndex = contentNormalized.indexOf('<div class="footer-top-inner">', containerIndex);
+          }
+
+          if (contentEndIndex !== -1 && contentEndIndex > containerIndex) {
+            let extracted = contentNormalized.substring(containerIndex, contentEndIndex).trim();
             extracted = extracted.replace(/^<div class="container large">\s*(?:<br\s*\/?>)?/i, '').trim();
+            extracted = extracted.replace(/^<div class="container large"><br>/i, '').trim();
             extracted = extracted.replace(/^<img\s+[^>]*class=["']blog-hero-img["'][^>]*>\s*(?:<br\s*\/?>)?/i, '').trim();
             extracted = extracted.replace(/^<div\s+style=["\'][^"\']*text-align:\s*center[^"\']*["\'][^>]*>\s*<img\s+[^>]*>\s*<\/div>\s*(?:<br\s*\/?>)?/i, '').trim();
             extracted = extracted.replace(/^<h[2-5][^>]*>[\s\S]*?<\/h[2-5]>\s*(?:<br\s*\/?>)?/i, '').trim();
+            
+            if (extracted.endsWith('</div>')) {
+              extracted = extracted.substring(0, extracted.length - 6).trim();
+            }
             content_html = extracted;
           }
         }
