@@ -1,0 +1,105 @@
+{
+  "novox_edtech": {
+    "displayName": "Novox Edtech",
+    "niche": "IT & Software Training Institute in Calicut, Kerala",
+    "domain": "https://novoxedtechllp.com",
+    "titleSuffix": " | Novox Edtech",
+    "icon": "fa-solid fa-graduation-cap",
+    "defaultLandingUrl": "mern-stack-course-detail.html",
+    "git": {
+      "ownerEnvVar": "EDTECH_GITHUB_OWNER",
+      "repoEnvVar": "EDTECH_GITHUB_REPO",
+      "branchEnvVar": "EDTECH_GITHUB_BRANCH",
+      "tokenEnvVar": "EDTECH_GITHUB_TOKEN"
+    },
+    "files": {
+      "template": "blog-template-v2.html",
+      "gridPage": "blogs.html",
+      "sitemap": "sitemap.xml",
+      "defaultImage": "assets/img/blog/blogimages/technologytrendblog.jpg"
+    },
+    "layout": {
+      "gridMarker": "<div class=\"row grid\">",
+      "contentStartKey": "<div class=\"blog-details-content\">",
+      "contentEndKey": "</div>\n                  </div>\n               </div>\n            </div>\n         </div>\n      </section>\n   </main>"
+    },
+    "categories": [
+      {"name": "Web Development", "url": "mern-stack-course-detail.html"},
+      {"name": "Tech & Programming", "url": "python-development-course-detail.html"},
+      {"name": "App Development", "url": "flutter-development-course-detail.html"},
+      {"name": "Digital Marketing", "url": "digital-marketing-course-detail.html"},
+      {"name": "Career & Placement", "url": "mern-stack-course-detail.html"},
+      {"name": "Design", "url": "ui-ux-design-course-detail.html"},
+      {"name": "Artificial Intelligence", "url": "python-development-course-detail.html"},
+      {"name": "Student & Learning", "url": "mern-stack-course-detail.html"}
+    ],
+    "seo": {
+      "requireFaq": true,
+      "requireConclusion": true,
+      "headingTag": "h2",
+      "subheadingTag": "h3",
+      "ctaHtml": "<div class=\"tp-contact-btn text-center mt-30\">\n  <a class=\"tp-btn-inner\" href=\"contact.html\">Contact Us Now</a>\n</div>",
+      "ctaClass": "tp-contact-btn",
+      "ctaAnchorClass": "tp-btn-inner",
+      "ctaTextPattern": ["enroll", "contact", "register", "join", "start", "apply", "now", "us", "course", "program", "career"]
+    },
+    "theme": {
+      "background": "#0f0f15",
+      "cardBackground": "rgba(255, 255, 255, 0.03)",
+      "primaryColor": "#3b82f6",
+      "glowColor": "rgba(59, 130, 246, 0.15)",
+      "accentColor": "#60a5fa"
+    }
+  },
+  "novox_core": {
+    "displayName": "Novox Core",
+    "niche": "Web Design, Software Development & Digital Agency",
+    "domain": "https://www.novoxcore.com",
+    "titleSuffix": " | Novox Core Blog",
+    "icon": "fa-solid fa-laptop-code",
+    "defaultLandingUrl": "services.html",
+    "git": {
+      "ownerEnvVar": "CORE_GITHUB_OWNER",
+      "repoEnvVar": "CORE_GITHUB_REPO",
+      "branchEnvVar": "CORE_GITHUB_BRANCH",
+      "tokenEnvVar": "CORE_GITHUB_TOKEN"
+    },
+    "files": {
+      "template": "blog-template-v2.html",
+      "gridPage": "blog.html",
+      "sitemap": "sitemap.xml",
+      "defaultImage": "Images/website_development_hero.png"
+    },
+    "layout": {
+      "gridMarker": "<div class=\"blogs-wrapper\">",
+      "contentStartKey": "<!-- BLOG_CONTENT_START -->",
+      "contentEndKey": "<!-- BLOG_CONTENT_END -->",
+      "containerStart": "<div class=\"container large\">",
+      "footerStart": "<div class=\"footer-top-inner\">"
+    },
+    "categories": [
+      {"name": "Design & Development", "url": "services.html"},
+      {"name": "Digital Marketing", "url": "services.html"},
+      {"name": "AI & Tech", "url": "services.html"},
+      {"name": "Careers & Team", "url": "careers.html"},
+      {"name": "Agency Insights", "url": "about.html"}
+    ],
+    "seo": {
+      "requireFaq": false,
+      "requireConclusion": true,
+      "headingTag": "h4",
+      "subheadingTag": "h5",
+      "ctaHtml": "<div class=\"cta-btn-wrapper text-center mt-30\" style=\"margin-top: 30px; text-align: center;\">\n  <a class=\"rr-btn\" href=\"contact.html\" style=\"color: aliceblue;\">\n    <span class=\"btn-wrap\">\n      <span class=\"text-one\">Let's Talk</span>\n      <span class=\"text-two\">Let's Talk</span>\n    </span>\n  </a>\n</div>",
+      "ctaClass": "cta-btn-wrapper",
+      "ctaAnchorClass": "rr-btn",
+      "ctaTextPattern": ["talk", "contact", "discuss", "hire", "consult", "start", "project", "quote", "now"]
+    },
+    "theme": {
+      "background": "#020205",
+      "cardBackground": "rgba(255, 255, 255, 0.02)",
+      "primaryColor": "#10b981",
+      "glowColor": "rgba(16, 185, 129, 0.15)",
+      "accentColor": "#34d399"
+    }
+  }
+}

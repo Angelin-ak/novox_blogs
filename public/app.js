@@ -2,12 +2,16 @@
 // Novox Blog Verification Dashboard - Client Controller (ES6)
 // -------------------------------------------------------------
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
   let passcode = localStorage.getItem('novox_passcode') || '';
   
+  // Identify Selected Site Profile
+  const activeSiteId = localStorage.getItem('selectedSite') || 'novox_edtech';
+  let activeSiteConfig = null;
+  let allSitesConfig = {};
+
   // DOM Elements
   const dashboardApp = document.getElementById('dashboard-app');
-
   const generatorForm = document.getElementById('generator-form');
   const topicInput = document.getElementById('topic');
   const keywordsInput = document.getElementById('keywords');
@@ -25,6 +29,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const imagePreviewThumbnailWrap = document.getElementById('image-preview-thumbnail-wrap');
   const sidebarImagePreview = document.getElementById('sidebar-image-preview');
   const regenerateImageBtn = document.getElementById('regenerate-image-btn');
+
+  const siteHeaderIcon = document.getElementById('site-header-icon');
+  const siteHeaderTitle = document.getElementById('site-header-title');
 
   let generatedImageBase64 = null;
   let loadedOriginalDate = null;
@@ -81,78 +88,172 @@ document.addEventListener('DOMContentLoaded', () => {
   const closeConsoleBtn = document.getElementById('close-console-btn');
   const liveCommitLink = document.getElementById('live-commit-link');
 
-  // SEO Elements
+  // SEO Score Display
   const scoreNum = document.getElementById('score-num');
   const scoreProgress = document.getElementById('score-progress');
-  const checkTitle = document.getElementById('check-title');
-  const checkDesc = document.getElementById('check-desc');
-  const checkContent = document.getElementById('check-content');
-  const checkKeywords = document.getElementById('check-keywords');
-  const checkIntro = document.getElementById('check-intro');
-  const checkHeadings = document.getElementById('check-headings');
-  const checkFaq = document.getElementById('check-faq');
-  const checkConclusion = document.getElementById('check-conclusion');
-  const checkInternalLinks = document.getElementById('check-internal-links');
-  const checkCta = document.getElementById('check-cta');
-  const checkSlug = document.getElementById('check-slug');
 
   // Token usage display elements
   const tokenInput = document.getElementById('token-input');
   const tokenOutput = document.getElementById('token-output');
   const tokenTotal = document.getElementById('token-total');
 
-  // -------------------------------------------------------------
-  // Section 1: Authentication Handling (Disabled)
-  // -------------------------------------------------------------
-  
-  const initAuth = () => {
-    // Authentication is disabled - dashboard is accessible directly
+  // Fetch configs and initialize dynamic site styles, checklists, dropdowns
+  try {
+    const configRes = await fetch(`/api/config?_t=${Date.now()}`);
+    if (!configRes.ok) throw new Error('Failed to fetch sites configuration');
+    allSitesConfig = await configRes.json();
+    activeSiteConfig = allSitesConfig[activeSiteId];
+    if (!activeSiteConfig) {
+      alert(`Site profile ${activeSiteId} not found in config!`);
+      activeSiteConfig = allSitesConfig[Object.keys(allSitesConfig)[0]];
+    }
+  } catch (err) {
+    console.error('Failed to load multi-site setup, using fallback settings.', err);
+    // Fallback stub config
+    activeSiteConfig = {
+      displayName: "Novox Edtech",
+      niche: "IT & Software Training Institute",
+      domain: "https://novoxedtechllp.com",
+      icon: "fa-solid fa-graduation-cap",
+      defaultLandingUrl: "mern-stack-course-detail.html",
+      files: {
+        gridPage: "blogs.html",
+        template: "blog-template-v2.html",
+        sitemap: "sitemap.xml",
+        defaultImage: "assets/img/blog/blogimages/technologytrendblog.jpg"
+      },
+      categories: [
+        {"name": "Web Development", "url": "mern-stack-course-detail.html"},
+        {"name": "Tech & Programming", "url": "python-development-course-detail.html"}
+      ],
+      seo: {
+        requireFaq: true,
+        requireConclusion: true,
+        headingTag: "h2",
+        subheadingTag: "h3",
+        ctaHtml: "<div class=\"tp-contact-btn text-center mt-30\"><a class=\"tp-btn-inner\" href=\"contact.html\">Contact Us Now</a></div>",
+        ctaClass: "tp-contact-btn",
+        ctaAnchorClass: "tp-btn-inner",
+        ctaTextPattern: ["enroll", "contact", "register", "join", "start"]
+      },
+      theme: {
+        background: "#0f0f15",
+        primaryColor: "#3b82f6",
+        glowColor: "rgba(59, 130, 246, 0.15)",
+        accentColor: "#60a5fa"
+      }
+    };
+  }
+
+  // Apply Brand Headers and Titles
+  if (siteHeaderIcon) {
+    siteHeaderIcon.className = activeSiteConfig.icon;
+  }
+  if (siteHeaderTitle) {
+    siteHeaderTitle.textContent = activeSiteConfig.displayName;
+  }
+  document.title = `${activeSiteConfig.displayName} | Blog Verification Dashboard`;
+
+  // Inject Theme Styling Override dynamically
+  const styleEl = document.createElement('style');
+  styleEl.innerHTML = `
+    :root {
+      --primary-color: ${activeSiteConfig.theme.primaryColor};
+      --primary-glow: ${activeSiteConfig.theme.glowColor};
+      --secondary-color: ${activeSiteConfig.theme.accentColor};
+      --bg-color: ${activeSiteConfig.theme.background};
+    }
+  `;
+  document.head.appendChild(styleEl);
+
+  // Set default Author and Landing URL on parameters
+  if (authorInput) {
+    authorInput.value = activeSiteId === 'novox_core' ? 'Novoxed Tech LLP' : 'Novox Expert';
+  }
+  if (landingUrlInput) {
+    landingUrlInput.value = activeSiteConfig.defaultLandingUrl;
+    landingUrlInput.placeholder = `e.g. ${activeSiteConfig.defaultLandingUrl}`;
+  }
+  if (imageUrlInput) {
+    imageUrlInput.placeholder = `e.g. ${activeSiteConfig.files.defaultImage}`;
+  }
+
+  // Populate Categories Select Dropdown
+  if (categorySelect) {
+    categorySelect.innerHTML = '';
+    activeSiteConfig.categories.forEach(cat => {
+      const opt = document.createElement('option');
+      opt.value = cat.name;
+      opt.textContent = cat.name;
+      categorySelect.appendChild(opt);
+    });
+  }
+
+  // Initialize SEO Checklist UI Items dynamically based on site profiles
+  const initChecklist = () => {
+    const checklistItems = document.getElementById('checklist-items');
+    if (!checklistItems) return;
+    
+    let html = `
+      <li id="check-title" class="pending"><i class="fa-solid fa-circle-question"></i> Title (50-60 chars) <span class="val">0/60</span></li>
+      <li id="check-desc" class="pending"><i class="fa-solid fa-circle-question"></i> Meta Desc (120-160 chars) <span class="val">0/160</span></li>
+      <li id="check-content" class="pending"><i class="fa-solid fa-circle-question"></i> Length (Min 300 words) <span class="val">0</span></li>
+      <li id="check-keywords" class="pending"><i class="fa-solid fa-circle-question"></i> Keywords count (Min 3 times) <span class="val">0</span></li>
+      <li id="check-intro" class="pending"><i class="fa-solid fa-circle-question"></i> Keyword in Intro (First 3 sentences)</li>
+      <li id="check-headings" class="pending"><i class="fa-solid fa-circle-question"></i> Subheadings ${activeSiteConfig.seo.headingTag.toUpperCase()} (Min 2) <span class="val">0</span></li>
+    `;
+
+    if (activeSiteConfig.seo.requireFaq) {
+      html += `<li id="check-faq" class="pending"><i class="fa-solid fa-circle-question"></i> FAQ Section present</li>`;
+    }
+
+    if (activeSiteConfig.seo.requireConclusion) {
+      html += `<li id="check-conclusion" class="pending"><i class="fa-solid fa-circle-question"></i> Conclusion Section present</li>`;
+    }
+
+    html += `
+      <li id="check-internal-links" class="pending"><i class="fa-solid fa-circle-question"></i> Link to Landing Page</li>
+      <li id="check-cta" class="pending"><i class="fa-solid fa-circle-question"></i> Styled CTA button (.${activeSiteConfig.seo.ctaAnchorClass})</li>
+      <li id="check-slug" class="pending"><i class="fa-solid fa-circle-question"></i> Slug format (kebab-case)</li>
+    `;
+
+    checklistItems.innerHTML = html;
+
+    // Bind references to global variables so they are easily accessible in runSEOChecklist
+    window.checkTitle = document.getElementById('check-title');
+    window.checkDesc = document.getElementById('check-desc');
+    window.checkContent = document.getElementById('check-content');
+    window.checkKeywords = document.getElementById('check-keywords');
+    window.checkIntro = document.getElementById('check-intro');
+    window.checkHeadings = document.getElementById('check-headings');
+    window.checkFaq = document.getElementById('check-faq');
+    window.checkConclusion = document.getElementById('check-conclusion');
+    window.checkInternalLinks = document.getElementById('check-internal-links');
+    window.checkCta = document.getElementById('check-cta');
+    window.checkSlug = document.getElementById('check-slug');
   };
 
-  // -------------------------------------------------------------
-  // Section 2: AI Article Generation
-  // -------------------------------------------------------------
-  
+  initChecklist();
+
   // Smart Auto-mapping helper based on text content
   const autoMapFields = (text) => {
     const lowerText = text.toLowerCase();
-    let detectedUrl = 'mern-stack-course-detail.html'; // Default generic fallback
-    let detectedCategory = 'Tech & Programming'; // Default generic fallback
+    let detectedUrl = activeSiteConfig.defaultLandingUrl;
+    let detectedCategory = activeSiteConfig.categories[0].name;
 
-    if (lowerText.includes('react') || lowerText.includes('next.js') || lowerText.includes('nextjs')) {
-      detectedUrl = 'react-course-detail.html';
-      detectedCategory = 'Web Development';
-    } else if (lowerText.includes('mern') || lowerText.includes('mongodb') || lowerText.includes('node') || lowerText.includes('full stack') || lowerText.includes('fullstack') || lowerText.includes('web dev')) {
-      detectedUrl = 'mern-stack-course-detail.html';
-      detectedCategory = 'Web Development';
-    } else if (lowerText.includes('python') || lowerText.includes('django') || lowerText.includes('data science')) {
-      detectedUrl = 'python-development-course-detail.html';
-      detectedCategory = 'Tech & Programming';
-    } else if (lowerText.includes('flutter') || lowerText.includes('dart') || lowerText.includes('mobile app') || lowerText.includes('android') || lowerText.includes('ios') || lowerText.includes('app dev')) {
-      detectedUrl = 'flutter-development-course-detail.html';
-      detectedCategory = 'App Development';
-    } else if (lowerText.includes('ai') || lowerText.includes('artificial intelligence') || lowerText.includes('machine learning') || lowerText.includes('generative') || lowerText.includes('llm') || lowerText.includes('deep learning')) {
-      detectedUrl = 'ai-development-course-detail.html';
-      detectedCategory = 'Artificial Intelligence';
-    } else if (lowerText.includes('marketing') || lowerText.includes('seo') || lowerText.includes('social media') || lowerText.includes('advertis')) {
-      detectedUrl = 'digital-marketing-course-detail.html';
-      detectedCategory = 'Digital Marketing';
-    } else if (lowerText.includes('ui') || lowerText.includes('ux') || lowerText.includes('figma') || lowerText.includes('user experience')) {
-      detectedUrl = 'ui-ux-course-detail.html';
-      detectedCategory = 'Design';
-    } else if (lowerText.includes('design') || lowerText.includes('graphic') || lowerText.includes('photoshop') || lowerText.includes('illustrator')) {
-      detectedUrl = 'graphic-design-course-detail.html';
-      detectedCategory = 'Design';
-    } else if (lowerText.includes('career') || lowerText.includes('placement') || lowerText.includes('job') || lowerText.includes('interview')) {
-      detectedCategory = 'Career & Placement';
-    } else if (lowerText.includes('student') || lowerText.includes('learn') || lowerText.includes('study') || lowerText.includes('college') || lowerText.includes('academic')) {
-      detectedCategory = 'Student & Learning';
+    for (const cat of activeSiteConfig.categories) {
+      // Check if title words match the category name partially
+      const catFirstWord = cat.name.toLowerCase().split(' ')[0];
+      if (lowerText.includes(catFirstWord) && catFirstWord.length > 2) {
+        detectedUrl = cat.url;
+        detectedCategory = cat.name;
+        break;
+      }
     }
-
     return { detectedUrl, detectedCategory };
   };
 
-  // Auto-fill parameters as user writes topic (Smart Auto-mapping)
+  // Auto-fill parameters as user writes topic
   topicInput.addEventListener('input', () => {
     if (loadedOriginalFilename) return;
     if (!slugInput.value || slugInput.dataset.edited !== 'true') {
@@ -161,7 +262,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     const { detectedUrl, detectedCategory } = autoMapFields(topicInput.value);
 
-    if (landingUrlInput.dataset.edited !== 'true' || !landingUrlInput.value || landingUrlInput.value === 'mern-stack-course-detail.html') {
+    if (landingUrlInput.dataset.edited !== 'true' || !landingUrlInput.value || landingUrlInput.value === activeSiteConfig.defaultLandingUrl) {
       landingUrlInput.value = detectedUrl;
     }
     
@@ -169,8 +270,11 @@ document.addEventListener('DOMContentLoaded', () => {
       categorySelect.value = detectedCategory;
     }
 
-    if (!imageUrlInput.value || imageUrlInput.dataset.edited !== 'true' || imageUrlInput.value === 'assets/img/blog/new/generic_tech.png') {
-      imageUrlInput.value = slugInput.value ? `assets/img/blog/new/${slugInput.value}.png` : '';
+    if (!imageUrlInput.value || imageUrlInput.dataset.edited !== 'true') {
+      // E.g., assets/img/blog/new/topic.png vs Images/topic.png or asset names
+      const defaultImgPath = activeSiteConfig.files.defaultImage;
+      const baseDir = defaultImgPath.substring(0, defaultImgPath.lastIndexOf('/') + 1);
+      imageUrlInput.value = slugInput.value ? `${baseDir}${slugInput.value}.png` : '';
     }
   });
 
@@ -186,25 +290,14 @@ document.addEventListener('DOMContentLoaded', () => {
     imageUrlInput.dataset.edited = 'true';
   });
 
-  const categoryToCourseUrlMap = {
-    'Web Development': 'mern-stack-course-detail.html',
-    'Tech & Programming': 'python-development-course-detail.html',
-    'App Development': 'flutter-development-course-detail.html',
-    'Artificial Intelligence': 'ai-development-course-detail.html',
-    'Digital Marketing': 'digital-marketing-course-detail.html',
-    'Design': 'ui-ux-course-detail.html',
-    'Career & Placement': 'mern-stack-course-detail.html',
-    'Student & Learning': 'mern-stack-course-detail.html'
-  };
-
   categorySelect.addEventListener('change', () => {
     categorySelect.dataset.edited = 'true';
     
-    // Auto-update landing URL based on category if the user hasn't explicitly customized it
-    if (landingUrlInput.dataset.edited !== 'true' || !landingUrlInput.value || landingUrlInput.value === 'mern-stack-course-detail.html') {
-      const mappedUrl = categoryToCourseUrlMap[categorySelect.value];
-      if (mappedUrl) {
-        landingUrlInput.value = mappedUrl;
+    // Auto-update landing URL based on category selection mapping if not edited manually
+    if (landingUrlInput.dataset.edited !== 'true' || !landingUrlInput.value || landingUrlInput.value === activeSiteConfig.defaultLandingUrl) {
+      const match = activeSiteConfig.categories.find(c => c.name === categorySelect.value);
+      if (match) {
+        landingUrlInput.value = match.url;
       }
     }
   });
@@ -234,7 +327,6 @@ document.addEventListener('DOMContentLoaded', () => {
   generatorForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     
-    // Toggle loading UI
     generateBtn.disabled = true;
     btnText.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Generating Content...';
     btnSpinner.classList.remove('hidden');
@@ -245,7 +337,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const landing_url = landingUrlInput.value.trim();
     const category = categorySelect.value;
     const author = authorInput.value.trim();
-
     const generate_image = generateImageInput.checked;
 
     try {
@@ -253,7 +344,8 @@ document.addEventListener('DOMContentLoaded', () => {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${passcode}`
+          'Authorization': `Bearer ${passcode}`,
+          'x-site-id': activeSiteId
         },
         body: JSON.stringify({ topic, keywords, category, author, primary_keyword, landing_url, generate_image })
       });
@@ -270,21 +362,20 @@ document.addEventListener('DOMContentLoaded', () => {
       editorDesc.value = data.description;
       editorContent.value = data.content_html;
       
-      // Auto-set slug only if creating a new post
       if (!loadedOriginalFilename) {
         slugInput.value = generateSlugString(data.title);
       }
 
-      // Auto-detect course URL and category based on the generated title
+      // Auto-detect mappings from Title
       const { detectedUrl, detectedCategory } = autoMapFields(data.title);
-      if (landingUrlInput.dataset.edited !== 'true' || !landingUrlInput.value || landingUrlInput.value === 'mern-stack-course-detail.html') {
+      if (landingUrlInput.dataset.edited !== 'true' || !landingUrlInput.value || landingUrlInput.value === activeSiteConfig.defaultLandingUrl) {
         landingUrlInput.value = detectedUrl;
       }
       if (categorySelect.dataset.edited !== 'true') {
         categorySelect.value = detectedCategory;
       }
 
-      // Update token usage UI
+      // Update Token Usage Display
       if (data.usage_metadata) {
         tokenInput.textContent = data.usage_metadata.promptTokenCount || 0;
         tokenOutput.textContent = data.usage_metadata.candidatesTokenCount || 0;
@@ -298,7 +389,6 @@ document.addEventListener('DOMContentLoaded', () => {
       // Handle AI image response
       if (data.image_base64) {
         generatedImageBase64 = data.image_base64;
-        
         const isJpeg = generatedImageBase64.startsWith('/9j/');
         const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
         
@@ -311,14 +401,15 @@ document.addEventListener('DOMContentLoaded', () => {
         regenerateImageBtn.style.display = 'none';
       }
 
-      // Update Featured Image Path to match the generated slug name only if creating a new post
+      // Update Featured Image Path
       if (!loadedOriginalFilename) {
-        if (!imageUrlInput.value || imageUrlInput.dataset.edited !== 'true' || imageUrlInput.value === 'assets/img/blog/new/generic_tech.png') {
-          imageUrlInput.value = `assets/img/blog/new/${slugInput.value}.png`;
+        if (!imageUrlInput.value || imageUrlInput.dataset.edited !== 'true') {
+          const defaultImgPath = activeSiteConfig.files.defaultImage;
+          const baseDir = defaultImgPath.substring(0, defaultImgPath.lastIndexOf('/') + 1);
+          imageUrlInput.value = `${baseDir}${slugInput.value}.png`;
         }
       }
 
-      // Switch to editor view
       switchTab('editor-tab');
       runSEOChecklist();
 
@@ -331,21 +422,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // -------------------------------------------------------------
-  // Section 2b: Existing Blog Loader & Hydration
-  // -------------------------------------------------------------
-  const slugToTitle = (slug) => {
-    return slug
-      .replace('.html', '')
-      .split('-')
-      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
-      .join(' ');
-  };
-
   const populateExistingBlogsDropdown = async () => {
     if (!existingBlogsSelect) return;
     try {
-      const res = await fetch(`/api/blogs?_t=${Date.now()}`);
+      const res = await fetch(`/api/blogs?siteId=${activeSiteId}&_t=${Date.now()}`, {
+        headers: { 'x-site-id': activeSiteId }
+      });
       if (!res.ok) throw new Error('Failed to fetch existing blogs');
       const blogs = await res.json();
       
@@ -362,6 +444,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
+  const slugToTitle = (slug) => {
+    return slug
+      .replace('.html', '')
+      .split('-')
+      .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(' ');
+  };
+
   loadBlogBtn.addEventListener('click', async () => {
     const filename = existingBlogsSelect.value;
     if (!filename) {
@@ -374,7 +464,9 @@ document.addEventListener('DOMContentLoaded', () => {
     loadBlogBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Loading...';
 
     try {
-      const res = await fetch(`/api/blogs/${encodeURIComponent(filename)}?_t=${Date.now()}`);
+      const res = await fetch(`/api/blogs/${encodeURIComponent(filename)}?siteId=${activeSiteId}&_t=${Date.now()}`, {
+        headers: { 'x-site-id': activeSiteId }
+      });
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || 'Failed to fetch blog details');
@@ -385,8 +477,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // Populate Parameters Panel
       topicInput.value = data.title;
       slugInput.value = data.slug;
-      slugInput.disabled = true; // Lock the slug input field so it cannot be edited
-      // Check if data.category exists in categorySelect options, otherwise dynamically add it to keep it
+      slugInput.disabled = true; 
+
       let hasCategoryOption = false;
       for (let i = 0; i < categorySelect.options.length; i++) {
         if (categorySelect.options[i].value === data.category) {
@@ -408,7 +500,7 @@ document.addEventListener('DOMContentLoaded', () => {
       keywordsInput.value = data.keyword || '';
       publishDateInput.value = parseDateStringToYYYYMMDD(data.date) || getTodayDateString();
 
-      // Set flags to prevent automatic overwrite by topicInput keyups
+      // Set flags to prevent automatic overwrite by keyups
       slugInput.dataset.edited = 'true';
       landingUrlInput.dataset.edited = 'true';
       imageUrlInput.dataset.edited = 'true';
@@ -421,18 +513,14 @@ document.addEventListener('DOMContentLoaded', () => {
       editorDesc.value = data.description;
       editorContent.value = data.content_html;
 
-      // Switch view and update verification check
       switchTab('editor-tab');
       runSEOChecklist();
 
-      // Reset base64 image since we are editing an existing post with an existing image path
       generatedImageBase64 = null;
       loadedOriginalFilename = filename;
-
-      // Save original date
       loadedOriginalDate = data.date || null;
 
-      // Populate image thumbnail preview from GitHub
+      // Populate image thumbnail preview from GitHub raw proxy
       if (data.raw_image_url) {
         sidebarImagePreview.src = data.raw_image_url;
         imagePreviewThumbnailWrap.style.display = 'block';
@@ -453,11 +541,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   existingBlogsSelect.addEventListener('change', () => {
     if (!existingBlogsSelect.value) {
-      // User switched back to Create mode
+      // Reset back to Create mode
       loadedOriginalDate = null;
       loadedOriginalFilename = null;
       generatorForm.reset();
-      slugInput.disabled = false; // Re-enable the slug input field
+      slugInput.disabled = false;
       slugInput.dataset.edited = 'false';
       landingUrlInput.dataset.edited = 'false';
       imageUrlInput.dataset.edited = 'false';
@@ -481,10 +569,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const filename = existingBlogsSelect.value;
       if (!filename) return;
 
-      const confirmDelete = confirm(`Are you sure you want to permanently delete the blog post "${filename}"?\n\nThis will remove the HTML file, its sitemap.xml entry, and delete its card from blogs.html on GitHub.`);
+      const confirmDelete = confirm(`Are you sure you want to permanently delete the blog post "${filename}"?\n\nThis will remove the HTML file, its sitemap entry, and delete its card card from the grid of ${activeSiteConfig.displayName} on GitHub.`);
       if (!confirmDelete) return;
 
-      // Open Console overlay to show progress (similar to publishBtn click)
       consoleOverlay.classList.add('active');
       consoleOutput.innerHTML = '';
       closeConsoleBtn.classList.add('hidden');
@@ -493,7 +580,7 @@ document.addEventListener('DOMContentLoaded', () => {
       consoleStatus.querySelector('.status-indicator').className = 'status-indicator processing';
       consoleStatus.querySelector('.status-msg').textContent = 'Authenticating deletion transaction...';
 
-      writeLog(`Initializing deletion for blog: "${filename}"...`, 'info');
+      writeLog(`Initializing deletion on ${activeSiteConfig.displayName} for blog: "${filename}"...`, 'info');
 
       try {
         writeLog('Sending deletion transaction to GitHub API...', 'info');
@@ -501,7 +588,8 @@ document.addEventListener('DOMContentLoaded', () => {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${passcode}`
+            'Authorization': `Bearer ${passcode}`,
+            'x-site-id': activeSiteId
           }
         });
 
@@ -512,15 +600,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
         const data = await res.json();
 
-        writeLog(`API: Filtered card "${filename}" from blogs.html grid successfully.`, 'info');
+        writeLog(`API: Filtered card "${filename}" from grid container successfully.`, 'info');
         writeLog(`API: Cleaned sitemap.xml location entry.`, 'info');
-        writeLog(`API: Added deletion command for path "${filename}" to Git Data tree.`, 'info');
+        writeLog(`API: Added deletion command for path "${filename}" to Git Data transaction.`, 'info');
         writeLog('GitHub: Combined updates into single transactional tree.', 'success');
         writeLog(`GitHub: Created delete commit SHA ${data.commit_sha.substring(0, 7)}.`, 'success');
-        writeLog('GitHub: Advanced heads/main branch reference successfully.', 'success');
+        writeLog(`GitHub: Advanced heads/${activeSiteConfig.git.branchEnvVar ? 'main' : 'branch'} reference successfully.`, 'success');
         writeLog('Blog post deleted successfully from GitHub!', 'success');
 
-        // Reset state and switch back to Create mode
         loadedOriginalDate = null;
         loadedOriginalFilename = null;
         generatorForm.reset();
@@ -539,7 +626,6 @@ document.addEventListener('DOMContentLoaded', () => {
         editorDesc.value = '';
         editorContent.value = '';
         
-        // Refresh dropdown
         await populateExistingBlogsDropdown();
         runSEOChecklist();
 
@@ -588,16 +674,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const data = await res.json();
       if (data.image_base64) {
         generatedImageBase64 = data.image_base64;
-        
         const isJpeg = generatedImageBase64.startsWith('/9j/');
         const mimeType = isJpeg ? 'image/jpeg' : 'image/png';
         
         sidebarImagePreview.src = `data:${mimeType};base64,${generatedImageBase64}`;
         imagePreviewThumbnailWrap.style.display = 'block';
         
-        // Update preview tab if it's currently open
         updatePreviewIfActive();
-        
         alert('AI Featured Image regenerated successfully! It will be committed when you publish.');
       }
     } catch (err) {
@@ -608,10 +691,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // -------------------------------------------------------------
-  // Section 3: Tab switching and Web Simulator Rendering
-  // -------------------------------------------------------------
-  
   const switchTab = (tabId) => {
     tabButtons.forEach(btn => {
       if (btn.getAttribute('data-tab') === tabId) {
@@ -647,9 +726,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const image = imageUrlInput.value;
     const slug = slugInput.value || 'untitled-post';
 
-    browserUrl.textContent = `https://novoxedtechllp.com/${slug}.html`;
+    browserUrl.textContent = `${activeSiteConfig.domain}/${slug}.html`;
 
-    // Read the date from the date input picker and format it for the preview
     const selectedDate = publishDateInput.value;
     let formattedDate = '';
     if (selectedDate) {
@@ -677,36 +755,45 @@ document.addEventListener('DOMContentLoaded', () => {
     let imgSrc = '';
     if (generatedImageBase64) {
       imgSrc = `data:${mimeType};base64,${generatedImageBase64}`;
-    } else if (image && (image.startsWith('assets/') || (!image.startsWith('http') && !image.startsWith('data:')))) {
-      imgSrc = `/api/blogs-image?path=${encodeURIComponent(image)}`;
+    } else if (image && (image.startsWith('assets/') || image.startsWith('Images/') || (!image.startsWith('http') && !image.startsWith('data:')))) {
+      imgSrc = `/api/blogs-image?path=${encodeURIComponent(image)}&siteId=${activeSiteId}`;
     } else {
       imgSrc = image || 'https://placehold.co/800x450/e2e8f0/64748b?text=Featured+Image';
     }
 
-    // Simulated Styled HTML structure matching the real site (with visual representation of headers, custom styles, spacing)
+    const isCore = activeSiteId === 'novox_core';
+
+    // Render themed mock site frame wrapper
     previewBody.innerHTML = `
       <style>
+        .sim-wrapper {
+          background-color: ${isCore ? '#000000' : '#ffffff'};
+          color: ${isCore ? '#e2e8f0' : '#334155'};
+          font-family: 'Inter', system-ui, -apple-system, sans-serif;
+          padding: 24px;
+          min-height: 100%;
+        }
         .sim-header {
           display: flex;
           justify-content: space-between;
           align-items: center;
-          border-bottom: 2px solid #efefef;
+          border-bottom: 2px solid ${isCore ? '#1e293b' : '#efefef'};
           padding-bottom: 12px;
           margin-bottom: 24px;
         }
-        .sim-logo { font-size: 20px; font-weight: 800; color: #1e3a8a; }
-        .sim-nav { display: flex; gap: 15px; font-size: 13px; color: #666; font-weight: 600; }
+        .sim-logo { font-size: 20px; font-weight: 800; color: ${isCore ? '#10b981' : '#1e3a8a'}; }
+        .sim-nav { display: flex; gap: 15px; font-size: 13px; color: ${isCore ? '#94a3b8' : '#666'}; font-weight: 600; }
         
         .sim-breadcrumb {
           font-size: 12px;
-          color: #888;
+          color: ${isCore ? '#64748b' : '#888'};
           margin-bottom: 12px;
         }
-        .sim-breadcrumb a { color: #888; text-decoration: none; }
+        .sim-breadcrumb span { color: ${isCore ? '#10b981' : '#2563eb'}; }
         .sim-title {
           font-size: 32px;
           font-weight: 800;
-          color: #0f172a;
+          color: ${isCore ? '#ffffff' : '#0f172a'};
           line-height: 1.3;
           margin-bottom: 16px;
         }
@@ -717,37 +804,37 @@ document.addEventListener('DOMContentLoaded', () => {
           object-fit: cover;
           border-radius: 12px;
           margin-bottom: 24px;
-          box-shadow: 0 4px 20px rgba(0,0,0,0.08);
+          box-shadow: 0 4px 20px rgba(0,0,0, ${isCore ? '0.5' : '0.08'});
         }
         
         .sim-meta {
           display: flex;
           gap: 20px;
           font-size: 13px;
-          color: #64748b;
-          border-bottom: 1px solid #e2e8f0;
+          color: ${isCore ? '#94a3b8' : '#64748b'};
+          border-bottom: 1px solid ${isCore ? '#1e293b' : '#e2e8f0'};
           padding-bottom: 16px;
           margin-bottom: 24px;
         }
-        .sim-meta i { color: #2563eb; margin-right: 6px; }
+        .sim-meta i { color: ${isCore ? '#10b981' : '#2563eb'}; margin-right: 6px; }
         
         .sim-content {
           font-size: 16px;
           line-height: 1.8;
-          color: #334155;
+          color: ${isCore ? '#cbd5e1' : '#334155'};
         }
         .sim-content p { margin-bottom: 20px; }
-        .sim-content h2 {
+        .sim-content h2, .sim-content h4 {
           font-size: 24px;
           font-weight: 700;
-          color: #0f172a;
+          color: ${isCore ? '#ffffff' : '#0f172a'};
           margin-top: 32px;
           margin-bottom: 16px;
         }
-        .sim-content h3 {
+        .sim-content h3, .sim-content h5 {
           font-size: 20px;
           font-weight: 600;
-          color: #1e293b;
+          color: ${isCore ? '#f1f5f9' : '#1e293b'};
           margin-top: 24px;
           margin-bottom: 12px;
         }
@@ -757,65 +844,84 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         .sim-content li { margin-bottom: 8px; }
         
-        /* Company Style CTA Button styling */
-        .tp-contact-btn {
+        ${isCore ? `
+        .sim-content ul {
+          list-style: none;
+          padding-left: 0;
+        }
+        .sim-content li {
+          position: relative;
+          padding-left: 15px;
+          margin-bottom: 8px;
+        }
+        .sim-content li::before {
+          content: "•";
+          color: #10b981;
+          font-weight: bold;
+          display: inline-block; 
+          width: 1em;
+          margin-left: -1em;
+        }
+        ` : ''}
+
+        /* Company Styled CTA Button styling */
+        .tp-contact-btn, .cta-btn-wrapper {
           text-align: center;
           margin-top: 30px;
           margin-bottom: 30px;
         }
-        .tp-btn-inner {
+        .tp-btn-inner, .rr-btn {
           display: inline-block;
           font-size: 16px;
           font-weight: 600;
           color: #ffffff !important;
-          background-color: #2563eb;
+          background-color: ${isCore ? '#10b981' : '#2563eb'};
           padding: 12px 28px;
           border-radius: 8px;
           text-decoration: none !important;
-          box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+          box-shadow: 0 4px 12px ${isCore ? 'rgba(16, 185, 129, 0.2)' : 'rgba(37, 99, 235, 0.2)'};
           transition: all 0.2s ease-in-out;
         }
-        .tp-btn-inner:hover {
-          background-color: #1d4ed8;
+        .tp-btn-inner:hover, .rr-btn:hover {
+          background-color: ${isCore ? '#059669' : '#1d4ed8'};
           transform: translateY(-2px);
-          box-shadow: 0 6px 16px rgba(37, 99, 235, 0.35);
+          box-shadow: 0 6px 16px ${isCore ? 'rgba(16, 185, 129, 0.35)' : 'rgba(37, 99, 235, 0.35)'};
         }
       </style>
       
-      <div class="sim-header">
-        <div class="sim-logo">NOVOX EDTECH</div>
-        <div class="sim-nav">
-          <span>Home</span>
-          <span>About</span>
-          <span>Courses</span>
-          <span style="color: #2563eb; text-decoration: underline;">Blog</span>
+      <div class="sim-wrapper">
+        <div class="sim-header">
+          <div class="sim-logo">${isCore ? 'NOVOX CORE' : 'NOVOX EDTECH'}</div>
+          <div class="sim-nav">
+            <span>Home</span>
+            <span>About</span>
+            <span>${isCore ? 'Services' : 'Courses'}</span>
+            <span style="color: ${isCore ? '#10b981' : '#2563eb'}; text-decoration: underline;">Blog</span>
+          </div>
         </div>
-      </div>
-      
-      <div class="sim-breadcrumb">
-        Home &nbsp;/&nbsp; Blog &nbsp;/&nbsp; <span style="color: #2563eb;">${category}</span>
-      </div>
-      
-      <h1 class="sim-title">${title}</h1>
-      
-      <div class="sim-meta">
-        <span><i class="fa-regular fa-calendar-days"></i> ${formattedDate}</span>
-        <span><i class="fa-regular fa-user"></i> By ${authorInput.value}</span>
-        <span><i class="fa-regular fa-tag"></i> ${category}</span>
-      </div>
- 
-      <img src="${imgSrc}" alt="${title}" onerror="this.src='https://placehold.co/800x450/e2e8f0/64748b?text=Featured+Image'" class="sim-featured-img" />
-      
-      <div class="sim-content">
-        ${content}
+        
+        <div class="sim-breadcrumb">
+          Home &nbsp;/&nbsp; Blog &nbsp;/&nbsp; <span>${category}</span>
+        </div>
+        
+        <h1 class="sim-title">${title}</h1>
+        
+        <div class="sim-meta">
+          <span><i class="fa-regular fa-calendar-days"></i> ${formattedDate}</span>
+          <span><i class="fa-regular fa-user"></i> By ${authorInput.value}</span>
+          <span><i class="fa-regular fa-tag"></i> ${category}</span>
+        </div>
+   
+        <img src="${imgSrc}" alt="${title}" onerror="this.src='https://placehold.co/800x450/e2e8f0/64748b?text=Featured+Image'" class="sim-featured-img" />
+        
+        <div class="sim-content">
+          ${content}
+        </div>
       </div>
     `;
   };
 
-  // -------------------------------------------------------------
-  // Section 4: Real-time SEO Validation
-  // -------------------------------------------------------------
-
+  // Real-time SEO Validation checklist matching active site configurations
   const runSEOChecklist = () => {
     const title = editorTitle.value.trim();
     const desc = editorDesc.value.trim();
@@ -826,196 +932,232 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let score = 0;
     let checksPassed = 0;
+    
+    // Total checklist weight = 100 points
+    // Let's divide weight depending on checks present
+    const baseChecks = 9;
+    const requireFaq = activeSiteConfig.seo.requireFaq;
+    const requireConclusion = activeSiteConfig.seo.requireConclusion;
+    
+    let wTitle = 10;
+    let wDesc = 10;
+    let wContent = 10;
+    let wKeywords = 10;
+    let wIntro = 15;
+    let wHeadings = 10;
+    let wInternal = 10;
+    let wCta = 10;
+    let wSlug = 5;
+    
+    let wFaq = requireFaq ? 5 : 0;
+    let wConclusion = requireConclusion ? (requireFaq ? 5 : 10) : 0;
 
-    // 1. Title length (40-65 chars) - Weight 10
+    // 1. Title length (40-65 chars)
     const titleLen = title.length;
-    checkTitle.querySelector('.val').textContent = `${titleLen} chars`;
-    if (titleLen >= 40 && titleLen <= 65) {
-      updateCheckStatus(checkTitle, 'success');
-      score += 10;
-      checksPassed++;
-    } else if (titleLen > 0) {
-      updateCheckStatus(checkTitle, 'warning');
-      score += 3;
-    } else {
-      updateCheckStatus(checkTitle, 'pending');
+    if (window.checkTitle) {
+      window.checkTitle.querySelector('.val').textContent = `${titleLen} chars`;
+      if (titleLen >= 40 && titleLen <= 65) {
+        updateCheckStatus(window.checkTitle, 'success');
+        score += wTitle;
+        checksPassed++;
+      } else if (titleLen > 0) {
+        updateCheckStatus(window.checkTitle, 'warning');
+        score += Math.round(wTitle * 0.3);
+      } else {
+        updateCheckStatus(window.checkTitle, 'pending');
+      }
     }
 
-    // 2. Meta description (110-165 chars) - Weight 10
+    // 2. Meta description (110-165 chars)
     const descLen = desc.length;
-    checkDesc.querySelector('.val').textContent = `${descLen} chars`;
-    if (descLen >= 110 && descLen <= 165) {
-      updateCheckStatus(checkDesc, 'success');
-      score += 10;
-      checksPassed++;
-    } else if (descLen > 0) {
-      updateCheckStatus(checkDesc, 'warning');
-      score += 3;
-    } else {
-      updateCheckStatus(checkDesc, 'pending');
+    if (window.checkDesc) {
+      window.checkDesc.querySelector('.val').textContent = `${descLen} chars`;
+      if (descLen >= 110 && descLen <= 165) {
+        updateCheckStatus(window.checkDesc, 'success');
+        score += wDesc;
+        checksPassed++;
+      } else if (descLen > 0) {
+        updateCheckStatus(window.checkDesc, 'warning');
+        score += Math.round(wDesc * 0.3);
+      } else {
+        updateCheckStatus(window.checkDesc, 'pending');
+      }
     }
 
-    // 3. Word Count (Min 300 words) - Weight 10
+    // 3. Word Count (Min 300 words)
     const plainText = bodyHtml.replace(/<[^>]*>/g, ' ');
     const wordCount = plainText.split(/\s+/).filter(w => w.length > 0).length;
-    checkContent.querySelector('.val').textContent = `${wordCount} words`;
-    if (wordCount >= 300) {
-      updateCheckStatus(checkContent, 'success');
-      score += 10;
-      checksPassed++;
-    } else if (wordCount > 0) {
-      updateCheckStatus(checkContent, 'warning');
-      score += 3;
-    } else {
-      updateCheckStatus(checkContent, 'pending');
+    if (window.checkContent) {
+      window.checkContent.querySelector('.val').textContent = `${wordCount} words`;
+      if (wordCount >= 300) {
+        updateCheckStatus(window.checkContent, 'success');
+        score += wContent;
+        checksPassed++;
+      } else if (wordCount > 0) {
+        updateCheckStatus(window.checkContent, 'warning');
+        score += Math.round(wContent * 0.3);
+      } else {
+        updateCheckStatus(window.checkContent, 'pending');
+      }
     }
 
-    // 4. Keyword Density (At least 3 matches) - Weight 10
+    // 4. Keyword Density (At least 3 matches)
     let kwMatchCount = 0;
     if (primaryKeyword) {
       const regex = new RegExp(primaryKeyword.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&'), 'gi');
       const matches = plainText.match(regex);
       if (matches) kwMatchCount = matches.length;
     }
-    checkKeywords.querySelector('.val').textContent = `${kwMatchCount} matches`;
-    if (kwMatchCount >= 3) {
-      updateCheckStatus(checkKeywords, 'success');
-      score += 10;
-      checksPassed++;
-    } else if (kwMatchCount > 0) {
-      updateCheckStatus(checkKeywords, 'warning');
-      score += 3;
-    } else {
-      updateCheckStatus(checkKeywords, 'pending');
+    if (window.checkKeywords) {
+      window.checkKeywords.querySelector('.val').textContent = `${kwMatchCount} matches`;
+      if (kwMatchCount >= 3) {
+        updateCheckStatus(window.checkKeywords, 'success');
+        score += wKeywords;
+        checksPassed++;
+      } else if (kwMatchCount > 0) {
+        updateCheckStatus(window.checkKeywords, 'warning');
+        score += Math.round(wKeywords * 0.3);
+      } else {
+        updateCheckStatus(window.checkKeywords, 'pending');
+      }
     }
 
-    // 5. Keyword in Intro - Weight 15
+    // 5. Keyword in Intro
     let hasIntroKw = false;
     if (primaryKeyword && plainText) {
       const sentences = plainText.split('.').map(s => s.trim()).filter(s => s.length > 0);
       const introText = sentences.slice(0, 3).join(' ').toLowerCase();
       hasIntroKw = introText.includes(primaryKeyword.toLowerCase());
     }
-    if (hasIntroKw) {
-      updateCheckStatus(checkIntro, 'success');
-      score += 15;
-      checksPassed++;
-    } else if (primaryKeyword && bodyHtml.length > 0) {
-      updateCheckStatus(checkIntro, 'warning');
-    } else {
-      updateCheckStatus(checkIntro, 'pending');
+    if (window.checkIntro) {
+      if (hasIntroKw) {
+        updateCheckStatus(window.checkIntro, 'success');
+        score += wIntro;
+        checksPassed++;
+      } else if (primaryKeyword && bodyHtml.length > 0) {
+        updateCheckStatus(window.checkIntro, 'warning');
+      } else {
+        updateCheckStatus(window.checkIntro, 'pending');
+      }
     }
 
-    // 6. Subheadings H2 (Min 2) - Weight 10
-    const h2Matches = (bodyHtml.match(/<h2[^>]*>/gi) || []).length;
-    checkHeadings.querySelector('.val').textContent = `${h2Matches} H2`;
+    // 6. Subheadings H2/H4 (Min 2)
+    const headingTag = activeSiteConfig.seo.headingTag;
+    const headingRegex = new RegExp(`<${headingTag}[^>]*>`, 'gi');
+    const headingMatches = (bodyHtml.match(headingRegex) || []).length;
     const hasH1 = /<h1[^>]*>/i.test(bodyHtml);
-    if (h2Matches >= 2 && !hasH1) {
-      updateCheckStatus(checkHeadings, 'success');
-      score += 10;
-      checksPassed++;
-    } else if (h2Matches > 0 || hasH1) {
-      updateCheckStatus(checkHeadings, 'warning');
-    } else {
-      updateCheckStatus(checkHeadings, 'pending');
-    }
-
-    // 7. FAQ Section - Weight 10
-    const faqPatterns = [/faq/i, /frequently asked questions/i, /doubt/i, /common question/i];
-    const hasFaq = faqPatterns.some(pat => pat.test(plainText)) && /<h3[^>]*>/i.test(bodyHtml);
-    if (hasFaq) {
-      updateCheckStatus(checkFaq, 'success');
-      score += 10;
-      checksPassed++;
-    } else if (bodyHtml.length > 0) {
-      updateCheckStatus(checkFaq, 'warning');
-    } else {
-      updateCheckStatus(checkFaq, 'pending');
-    }
-
-    // 8. Conclusion Section - Weight 10
-    const conclusionPatterns = [/conclusion/i, /summary/i, /wrapping up/i, /final thoughts/i];
-    const hasConclusion = conclusionPatterns.some(pat => pat.test(plainText));
-    if (hasConclusion) {
-      updateCheckStatus(checkConclusion, 'success');
-      score += 10;
-      checksPassed++;
-    } else if (bodyHtml.length > 0) {
-      updateCheckStatus(checkConclusion, 'warning');
-    } else {
-      updateCheckStatus(checkConclusion, 'pending');
-    }
-
-    // 9. Internal Course links - Weight 5
-    const linkRegex = /<a\s+[^>]*href=["']([^"']+)["']/gi;
-    let linkMatches;
-    let hasInternalLink = false;
-    while ((linkMatches = linkRegex.exec(bodyHtml)) !== null) {
-      const href = linkMatches[1];
-      if (href.includes('{{COURSE_URL}}') || (landingUrl && href.includes(landingUrl))) {
-        hasInternalLink = true;
-        break;
+    if (window.checkHeadings) {
+      window.checkHeadings.querySelector('.val').textContent = `${headingMatches} ${headingTag.toUpperCase()}`;
+      if (headingMatches >= 2 && !hasH1) {
+        updateCheckStatus(window.checkHeadings, 'success');
+        score += wHeadings;
+        checksPassed++;
+      } else if (headingMatches > 0 || hasH1) {
+        updateCheckStatus(window.checkHeadings, 'warning');
+      } else {
+        updateCheckStatus(window.checkHeadings, 'pending');
       }
     }
-    if (hasInternalLink) {
-      updateCheckStatus(checkInternalLinks, 'success');
-      score += 5;
-      checksPassed++;
-    } else if (bodyHtml.length > 0) {
-      updateCheckStatus(checkInternalLinks, 'warning');
-    } else {
-      updateCheckStatus(checkInternalLinks, 'pending');
+
+    // 7. FAQ Section (Optional based on config)
+    if (requireFaq && window.checkFaq) {
+      const faqPatterns = [/faq/i, /frequently asked questions/i, /doubt/i, /common question/i];
+      const hasFaq = faqPatterns.some(pat => pat.test(plainText)) && new RegExp(`<${activeSiteConfig.seo.subheadingTag || 'h3'}[^>]*>`, 'i').test(bodyHtml);
+      if (hasFaq) {
+        updateCheckStatus(window.checkFaq, 'success');
+        score += wFaq;
+        checksPassed++;
+      } else if (bodyHtml.length > 0) {
+        updateCheckStatus(window.checkFaq, 'warning');
+      } else {
+        updateCheckStatus(window.checkFaq, 'pending');
+      }
     }
 
-    // 10. Styled CTA Link - Weight 5
-    const ctaPatterns = [/enroll/i, /contact/i, /register/i, /join/i, /start/i, /apply/i, /now/i, /us/i, /course/i, /program/i, /career/i];
-    const ctaContainerRegex = /<div\s+[^>]*class=["'][^"']*tp-contact-btn[^"']*["'][^>]*>([\s\S]*?)<\/div>/gis;
-    let ctaContainerMatch;
+    // 8. Conclusion Section (Optional based on config)
+    if (requireConclusion && window.checkConclusion) {
+      const conclusionPatterns = [/conclusion/i, /summary/i, /wrapping up/i, /final thoughts/i];
+      const hasConclusion = conclusionPatterns.some(pat => pat.test(plainText));
+      if (hasConclusion) {
+        updateCheckStatus(window.checkConclusion, 'success');
+        score += wConclusion;
+        checksPassed++;
+      } else if (bodyHtml.length > 0) {
+        updateCheckStatus(window.checkConclusion, 'warning');
+      } else {
+        updateCheckStatus(window.checkConclusion, 'pending');
+      }
+    }
+
+    // 9. Internal Landing Page links
+    const hrefMatches = [...bodyHtml.matchAll(/<a\s+[^>]*href=["']([^"']+)["']/gi)];
+    const hasInternalLink = hrefMatches.some(match => {
+      const href = match[1];
+      return href.includes('{{COURSE_URL}}') || (landingUrl && href.includes(landingUrl));
+    });
+    if (window.checkInternalLinks) {
+      if (hasInternalLink) {
+        updateCheckStatus(window.checkInternalLinks, 'success');
+        score += wInternal;
+        checksPassed++;
+      } else if (bodyHtml.length > 0) {
+        updateCheckStatus(window.checkInternalLinks, 'warning');
+      } else {
+        updateCheckStatus(window.checkInternalLinks, 'pending');
+      }
+    }
+
+    // 10. Styled CTA Link
+    const ctaTextPatterns = activeSiteConfig.seo.ctaTextPattern.map(p => new RegExp(p, 'i'));
     let hasCta = false;
-    while ((ctaContainerMatch = ctaContainerRegex.exec(bodyHtml)) !== null) {
-      const innerHtml = ctaContainerMatch[1];
-      const aRegex = /<a\s+[^>]*class=["'][^"']*tp-btn-inner[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gis;
-      let aMatch;
-      while ((aMatch = aRegex.exec(innerHtml)) !== null) {
-        const href = aMatch[1];
-        const text = aMatch[2].replace(/<[^>]*>/g, '').trim();
-        if (href.includes('contact.html') || href === 'contact.html') {
-          if (ctaPatterns.some(pat => pat.test(text))) {
-            hasCta = true;
-            break;
-          }
-        }
+    
+    if (activeSiteId === 'novox_core') {
+      hasCta = new RegExp(`<a\\s+[^>]*class=["'][^"']*${activeSiteConfig.seo.ctaAnchorClass}[^"']*["'][^>]*href=["']contact\\.html["']`, 'i').test(bodyHtml);
+    } else {
+      const ctaContainerMatches = [...bodyHtml.matchAll(new RegExp(`<div\\s+[^>]*class=["'][^"']*${activeSiteConfig.seo.ctaClass}[^"']*["'][^>]*>([\\s\\S]*?)<\\/div>`, 'gis'))];
+      hasCta = ctaContainerMatches.some(ctaMatch => {
+        const innerHtml = ctaMatch[1];
+        const aMatches = [...innerHtml.matchAll(new RegExp(`<a\\s+[^>]*class=["'][^"']*${activeSiteConfig.seo.ctaAnchorClass}[^"']*["'][^>]*href=["']([^"']+)["'][^>]*>([\\s\\S]*?)<\\/a>`, 'gis'))];
+        return aMatches.some(aMatch => {
+          const href = aMatch[1];
+          const text = aMatch[2].replace(/<[^>]*>/g, '').trim();
+          return (href.includes('contact.html') || href === 'contact.html') && ctaTextPatterns.some(pat => pat.test(text));
+        });
+      });
+    }
+
+    if (window.checkCta) {
+      if (hasCta) {
+        updateCheckStatus(window.checkCta, 'success');
+        score += wCta;
+        checksPassed++;
+      } else if (bodyHtml.length > 0) {
+        updateCheckStatus(window.checkCta, 'warning');
+      } else {
+        updateCheckStatus(window.checkCta, 'pending');
       }
-      if (hasCta) break;
-    }
-    if (hasCta) {
-      updateCheckStatus(checkCta, 'success');
-      score += 5;
-      checksPassed++;
-    } else if (bodyHtml.length > 0) {
-      updateCheckStatus(checkCta, 'warning');
-    } else {
-      updateCheckStatus(checkCta, 'pending');
     }
 
-    // 11. Slug format - Weight 5
+    // 11. Slug format
     const slugRegex = /^[a-z0-9-]+$/;
-    if (slug.length > 0 && slugRegex.test(slug)) {
-      updateCheckStatus(checkSlug, 'success');
-      score += 5;
-      checksPassed++;
-    } else if (slug.length > 0) {
-      updateCheckStatus(checkSlug, 'warning');
-    } else {
-      updateCheckStatus(checkSlug, 'pending');
+    if (window.checkSlug) {
+      if (slug.length > 0 && slugRegex.test(slug)) {
+        updateCheckStatus(window.checkSlug, 'success');
+        score += wSlug;
+        checksPassed++;
+      } else if (slug.length > 0) {
+        updateCheckStatus(window.checkSlug, 'warning');
+      } else {
+        updateCheckStatus(window.checkSlug, 'pending');
+      }
     }
 
-    // Update Circular Chart & Score Number
+    // Update Circular Chart & Score Number (Ensure absolute max 100)
+    score = Math.min(100, score);
     scoreNum.textContent = score;
     const strokeDash = `${score}, 100`;
     scoreProgress.setAttribute('stroke-dasharray', strokeDash);
 
-    // Dynamic coloring based on score
     if (score >= 90) {
       scoreProgress.style.stroke = 'var(--success-color)';
     } else if (score >= 60) {
@@ -1024,12 +1166,8 @@ document.addEventListener('DOMContentLoaded', () => {
       scoreProgress.style.stroke = 'var(--danger-color)';
     }
 
-    // Enable/Disable Publish Button (Enable if score >= 80)
-    if (score >= 80) {
-      publishBtn.disabled = false;
-    } else {
-      publishBtn.disabled = true;
-    }
+    // Enable Publish if optimization score is 80+
+    publishBtn.disabled = score < 80;
   };
 
   const updateCheckStatus = (el, status) => {
@@ -1044,12 +1182,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   };
 
-  // Add event listeners for real-time validation
+  // Re-bind listeners for real-time verification checks
   [editorTitle, editorDesc, editorContent, slugInput].forEach(el => {
     el.addEventListener('input', runSEOChecklist);
   });
 
-  // Real-time preview updating on parameter changes
   const isPreviewTabActive = () => {
     const previewTabBtn = document.querySelector('.tab-btn[data-tab="preview-tab"]');
     return previewTabBtn && previewTabBtn.classList.contains('active');
@@ -1066,7 +1203,7 @@ document.addEventListener('DOMContentLoaded', () => {
   if (categorySelect) categorySelect.addEventListener('change', updatePreviewIfActive);
 
   // -------------------------------------------------------------
-  // Section 5: Verify & Publish (Git Commits via Backend)
+  // Verify & Publish (Commit via backend REST API)
   // -------------------------------------------------------------
   
   const writeLog = (message, type = 'info') => {
@@ -1079,19 +1216,16 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   publishBtn.addEventListener('click', async () => {
-    // Open Console Modal
     consoleOverlay.classList.add('active');
     consoleOutput.innerHTML = '';
     closeConsoleBtn.classList.add('hidden');
     liveCommitLink.classList.add('hidden');
     
-    // Reset status
     consoleStatus.querySelector('.status-indicator').className = 'status-indicator processing';
     consoleStatus.querySelector('.status-msg').textContent = 'Authenticating transaction...';
 
-    writeLog('Initializing blog publication client validation...', 'info');
+    writeLog(`Initializing blog publication client validation for ${activeSiteConfig.displayName}...`, 'info');
 
-    // Retrieve input values
     const title = editorTitle.value.trim();
     const description = editorDesc.value.trim();
     const content_html = editorContent.value.trim();
@@ -1102,14 +1236,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const keyword = primaryKeywordInput.value.trim();
     const landing_url = landingUrlInput.value.trim();
 
-    // Use the value of the publish-date date picker, formatted for the website
     const dateFormatted = formatYYYYMMDDToDateString(publishDateInput.value) || new Date().toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'short',
       day: '2-digit'
     });
 
-    // 1. Run local client validation filter before sending to server
     writeLog('Running Format Verification & SEO checklist filters...', 'info');
     
     // a. Keyword in Intro Check
@@ -1126,7 +1258,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    // b. Headings Aligned Check (no H1 in body, H2 >= 2)
+    // b. Headings Check
     const hasH1 = /<h1[^>]*>/i.test(content_html);
     if (hasH1) {
       writeLog('VALIDATION ERROR: Semantic hierarchy mismatch. Do NOT include <h1> tags inside the content body.', 'error');
@@ -1136,9 +1268,11 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const h2Count = (content_html.match(/<h2[^>]*>/gi) || []).length;
-    if (h2Count < 2) {
-      writeLog(`VALIDATION ERROR: Semantic hierarchy mismatch. Must include at least two H2 subheadings. Found ${h2Count}.`, 'error');
+    const hTag = activeSiteConfig.seo.headingTag;
+    const hRegex = new RegExp(`<${hTag}[^>]*>`, 'gi');
+    const hCount = (content_html.match(hRegex) || []).length;
+    if (hCount < 2) {
+      writeLog(`VALIDATION ERROR: Semantic hierarchy mismatch. Must include at least two <${hTag.toUpperCase()}> subheadings. Found ${hCount}.`, 'error');
       consoleStatus.querySelector('.status-indicator').className = 'status-indicator failed';
       consoleStatus.querySelector('.status-msg').textContent = 'Verification Failed';
       closeConsoleBtn.classList.remove('hidden');
@@ -1146,17 +1280,16 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     writeLog('SEO checklist passed. Generating payload...', 'success');
-    writeLog(`Title: "${title}"`, 'info');
-    writeLog(`Slug: "${slug}.html"`, 'info');
     
     try {
-      writeLog('Sending publishing transaction to GitHub API...', 'info');
+      writeLog(`Sending transaction to Git Engine on backend...`, 'info');
       
       const res = await fetch('/api/publish', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${passcode}`
+          'Authorization': `Bearer ${passcode}`,
+          'x-site-id': activeSiteId
         },
         body: JSON.stringify({
           title,
@@ -1181,30 +1314,24 @@ document.addEventListener('DOMContentLoaded', () => {
 
       const data = await res.json();
 
-      writeLog('API: Pulled blog-template-v2.html template successfully.', 'info');
-      writeLog(`API: Compiled new static file: "${slug}.html".`, 'info');
-      writeLog('API: Injected new listing card into blogs.html grid container.', 'info');
-      writeLog('API: Appended URL to sitemap.xml.', 'info');
+      writeLog(`API: Pulled blog template: "${activeSiteConfig.files.template}" successfully.`, 'info');
+      writeLog(`API: Compiled static page payload: "${slug}.html".`, 'info');
+      writeLog(`API: Injected listing card card into "${activeSiteConfig.files.gridPage}" container.`, 'info');
+      writeLog(`API: Appended URL to "${activeSiteConfig.files.sitemap}".`, 'info');
       writeLog('GitHub: Combined updates into single transactional tree.', 'success');
       writeLog(`GitHub: Created commit SHA ${data.commit_sha.substring(0, 7)}.`, 'success');
-      writeLog('GitHub: Advanced heads/main branch reference successfully.', 'success');
+      writeLog(`GitHub: Advanced heads/main reference successfully.`, 'success');
       writeLog('Website publication committed successfully!', 'success');
 
-      // Refresh the dropdown listing in case a new file was created or renamed
-      populateExistingBlogsDropdown();
-
-      // Reset image state
+      await populateExistingBlogsDropdown();
       generatedImageBase64 = null;
 
-      // Console UI Success state
       consoleStatus.querySelector('.status-indicator').className = 'status-indicator success';
       consoleStatus.querySelector('.status-msg').textContent = 'Pushed to GitHub Successfully!';
       
-      // Setup live links
       liveCommitLink.href = data.commit_url;
       liveCommitLink.classList.remove('hidden');
 
-      // Fire confetti celebration
       confetti({
         particleCount: 100,
         spread: 70,
@@ -1220,12 +1347,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // Modal actions
   closeConsoleBtn.addEventListener('click', () => {
     consoleOverlay.classList.remove('active');
   });
 
-  // Initialize Auth Check & Dropdown on Boot
-  initAuth();
+  // Initial Boot Populators
   populateExistingBlogsDropdown();
+  runSEOChecklist();
 });
