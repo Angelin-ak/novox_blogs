@@ -2,8 +2,97 @@
 // Novox Blog Verification Dashboard - Client Controller (ES6)
 // -------------------------------------------------------------
 
+// Global Passcode Authentication Gate & Fetch Interceptor
+const originalFetch = window.fetch;
+window.fetch = async function(url, options = {}) {
+  const currentPasscode = localStorage.getItem('novox_passcode') || '';
+  if (currentPasscode) {
+    options.headers = options.headers || {};
+    options.headers['x-passcode'] = currentPasscode;
+    options.headers['Authorization'] = `Bearer ${currentPasscode}`;
+  }
+  const response = await originalFetch(url, options);
+  
+  if (response.status === 401 && !url.includes('/api/verify-passcode')) {
+    localStorage.removeItem('novox_passcode');
+    showAuthGate();
+  }
+  return response;
+};
+
+function showAuthGate() {
+  let overlay = document.getElementById('auth-overlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'auth-overlay';
+    overlay.className = 'overlay';
+    overlay.innerHTML = `
+      <div class="glass-card auth-card">
+        <div class="auth-header">
+          <div class="auth-icon"><i class="fa-solid fa-lock"></i></div>
+          <h2>Passcode Required</h2>
+          <p>Enter the master passcode to access the workspace</p>
+        </div>
+        <form id="auth-form" style="display: flex; flex-direction: column; gap: 15px;">
+          <div class="input-group" style="text-align: left;">
+            <label for="passcode-input">Master Passcode</label>
+            <input type="password" id="passcode-input" placeholder="••••••••" required style="width: 100%;">
+          </div>
+          <button type="submit" class="btn btn-primary btn-block" style="width: 100%;">
+            <span>Unlock Workspace</span>
+          </button>
+          <div id="auth-error" class="error-msg" style="display: none;"></div>
+        </form>
+      </div>
+    `;
+    document.body.appendChild(overlay);
+    
+    const form = overlay.querySelector('#auth-form');
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const input = overlay.querySelector('#passcode-input');
+      const errorDiv = overlay.querySelector('#auth-error');
+      const submitBtn = form.querySelector('button[type="submit"]');
+      const origBtnHtml = submitBtn.innerHTML;
+      
+      submitBtn.disabled = true;
+      submitBtn.innerHTML = '<span>Verifying...</span>';
+      errorDiv.style.display = 'none';
+      
+      try {
+        const res = await originalFetch('/api/verify-passcode', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ passcode: input.value })
+        });
+        
+        if (res.ok) {
+          localStorage.setItem('novox_passcode', input.value);
+          overlay.classList.remove('active');
+          window.location.reload();
+        } else {
+          errorDiv.textContent = 'Invalid passcode. Please try again.';
+          errorDiv.style.display = 'block';
+          input.value = '';
+        }
+      } catch (err) {
+        errorDiv.textContent = 'Error contacting authentication server.';
+        errorDiv.style.display = 'block';
+      } finally {
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = origBtnHtml;
+      }
+    });
+  }
+  overlay.classList.add('active');
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
   let passcode = localStorage.getItem('novox_passcode') || '';
+  if (!passcode) {
+    showAuthGate();
+    return;
+  }
   
   // Identify Selected Site Profile
   const activeSiteId = localStorage.getItem('selectedSite') || 'novox_edtech';
