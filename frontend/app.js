@@ -3,15 +3,24 @@
 // -------------------------------------------------------------
 
 // Global Passcode Authentication Gate & Fetch Interceptor
+const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
+  ? `${window.location.protocol}//${window.location.host}`
+  : 'http://localhost:3000'; // Change to your Render API URL when live (e.g., 'https://novox-admin-api.onrender.com')
+
 const originalFetch = window.fetch;
 window.fetch = async function(url, options = {}) {
+  let targetUrl = url;
+  if (url.startsWith('/api/')) {
+    targetUrl = `${API_BASE_URL}${url}`;
+  }
+  
   const currentPasscode = localStorage.getItem('novox_passcode') || '';
   if (currentPasscode) {
     options.headers = options.headers || {};
     options.headers['x-passcode'] = currentPasscode;
     options.headers['Authorization'] = `Bearer ${currentPasscode}`;
   }
-  const response = await originalFetch(url, options);
+  const response = await originalFetch(targetUrl, options);
   
   if (response.status === 401 && !url.includes('/api/verify-passcode')) {
     localStorage.removeItem('novox_passcode');
@@ -610,7 +619,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       // Populate image thumbnail preview from GitHub raw proxy
       if (data.raw_image_url) {
-        sidebarImagePreview.src = data.raw_image_url;
+        sidebarImagePreview.src = data.raw_image_url.startsWith('http') || data.raw_image_url.startsWith('data:')
+          ? data.raw_image_url
+          : `${API_BASE_URL}${data.raw_image_url}`;
         imagePreviewThumbnailWrap.style.display = 'block';
         regenerateImageBtn.style.display = 'block';
       } else {
@@ -861,7 +872,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (generatedImageBase64) {
       imgSrc = `data:${mimeType};base64,${generatedImageBase64}`;
     } else if (image && (image.startsWith('assets/') || image.startsWith('Images/') || (!image.startsWith('http') && !image.startsWith('data:')))) {
-      imgSrc = `/api/blogs-image?path=${encodeURIComponent(image)}&siteId=${activeSiteId}`;
+      imgSrc = `${API_BASE_URL}/api/blogs-image?path=${encodeURIComponent(image)}&siteId=${activeSiteId}`;
     } else {
       imgSrc = image || 'https://placehold.co/800x450/e2e8f0/64748b?text=Featured+Image';
     }
