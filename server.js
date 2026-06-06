@@ -29,15 +29,32 @@ try {
   console.error('Failed to load sites.config.json:', err.message);
 }
 
-// Authentication Middleware (Disabled)
+// Authentication Middleware (Enabled)
 const authenticate = (req, res, next) => {
-  next();
+  const authHeader = req.headers['authorization'];
+  const customHeader = req.headers['x-passcode'];
+  
+  let passcode = '';
+  if (customHeader) {
+    passcode = customHeader;
+  } else if (authHeader && authHeader.startsWith('Bearer ')) {
+    passcode = authHeader.substring(7);
+  }
+  
+  const expectedPasscode = process.env.ADMIN_PASSCODE || 'novox2026';
+  
+  if (passcode === expectedPasscode) {
+    next();
+  } else {
+    res.status(401).json({ error: 'Unauthorized: Invalid passcode' });
+  }
 };
 
 // Route: Verify Passcode
 app.post('/api/verify-passcode', (req, res) => {
   const { passcode } = req.body;
-  if (passcode === process.env.ADMIN_PASSCODE) {
+  const expectedPasscode = process.env.ADMIN_PASSCODE || 'novox2026';
+  if (passcode === expectedPasscode) {
     res.json({ success: true });
   } else {
     res.status(401).json({ error: 'Invalid passcode' });
@@ -110,7 +127,7 @@ function robustJSONParse(text) {
 }
 
 // API: Get active sites config profiles for UI
-app.get('/api/config', (req, res) => {
+app.get('/api/config', authenticate, (req, res) => {
   res.json(sitesConfig);
 });
 
@@ -1141,7 +1158,7 @@ app.get('/api/blogs-image', async (req, res) => {
 });
 
 // API: List all existing blogs
-app.get('/api/blogs', async (req, res) => {
+app.get('/api/blogs', authenticate, async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
@@ -1220,7 +1237,7 @@ app.get('/api/blogs', async (req, res) => {
 });
 
 // API: Get details of a specific blog for editing
-app.get('/api/blogs/:filename', async (req, res) => {
+app.get('/api/blogs/:filename', authenticate, async (req, res) => {
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
