@@ -6,6 +6,7 @@ import { Octokit } from '@octokit/rest';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import sharp from 'sharp';
 
 dotenv.config();
 
@@ -252,8 +253,18 @@ Ensure the response matches application/json mime-type and contains valid, parsi
             }
           });
           if (imageResponse.generatedImages && imageResponse.generatedImages.length > 0) {
-            imageBase64 = imageResponse.generatedImages[0].image.imageBytes;
+            const rawImageBytes = imageResponse.generatedImages[0].image.imageBytes;
             console.log(`Successfully generated image using model: ${imgModel}`);
+            try {
+              const webpBuffer = await sharp(Buffer.from(rawImageBytes, 'base64'))
+                .webp({ quality: 80 })
+                .toBuffer();
+              imageBase64 = webpBuffer.toString('base64');
+              console.log(`Converted generated PNG to WebP format`);
+            } catch (convErr) {
+              console.warn(`Failed to convert image to WebP:`, convErr.message);
+              imageBase64 = rawImageBytes;
+            }
             break;
           }
         } catch (err) {
@@ -313,8 +324,18 @@ app.post('/api/generate-image-only', authenticate, async (req, res) => {
           }
         });
         if (imageResponse.generatedImages && imageResponse.generatedImages.length > 0) {
-          imageBase64 = imageResponse.generatedImages[0].image.imageBytes;
+          const rawImageBytes = imageResponse.generatedImages[0].image.imageBytes;
           console.log(`Successfully generated image using model: ${imgModel}`);
+          try {
+            const webpBuffer = await sharp(Buffer.from(rawImageBytes, 'base64'))
+              .webp({ quality: 80 })
+              .toBuffer();
+            imageBase64 = webpBuffer.toString('base64');
+            console.log(`Converted generated image to WebP format`);
+          } catch (convErr) {
+            console.warn(`Failed to convert image to WebP:`, convErr.message);
+            imageBase64 = rawImageBytes;
+          }
           break;
         }
       } catch (err) {
@@ -743,8 +764,10 @@ app.post('/api/publish', authenticate, async (req, res) => {
     const templateHtml = Buffer.from(templateRes.data.content, 'base64').toString('utf8');
 
     // Determine actual image extension dynamically based on Base64 signature
-    let imageExt = 'png';
-    if (image_base64 && image_base64.startsWith('/9j/')) {
+    let imageExt = 'webp';
+    if (image_base64 && image_base64.startsWith('iVBORw0KGgo')) {
+      imageExt = 'png';
+    } else if (image_base64 && image_base64.startsWith('/9j/')) {
       imageExt = 'jpg';
     }
     const finalImageName = image_base64 ? `assets/img/blog/new/${slug}.${imageExt}` : image;
@@ -1173,6 +1196,8 @@ app.get('/api/blogs-image', async (req, res) => {
     let contentType = 'image/png';
     if (imagePath.toLowerCase().endsWith('.jpg') || imagePath.toLowerCase().endsWith('.jpeg')) {
       contentType = 'image/jpeg';
+    } else if (imagePath.toLowerCase().endsWith('.webp')) {
+      contentType = 'image/webp';
     } else if (imagePath.toLowerCase().endsWith('.gif')) {
       contentType = 'image/gif';
     } else if (imagePath.toLowerCase().endsWith('.svg')) {

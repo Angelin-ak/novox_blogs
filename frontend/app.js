@@ -368,10 +368,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     if (!imageUrlInput.value || imageUrlInput.dataset.edited !== 'true') {
-      // E.g., assets/img/blog/new/topic.png vs Images/topic.png or asset names
+      // E.g., assets/img/blog/new/topic.webp vs Images/topic.png or asset names
       const defaultImgPath = activeSiteConfig.files.defaultImage;
       const baseDir = defaultImgPath.substring(0, defaultImgPath.lastIndexOf('/') + 1);
-      imageUrlInput.value = slugInput.value ? `${baseDir}${slugInput.value}.png` : '';
+      imageUrlInput.value = slugInput.value ? `${baseDir}${slugInput.value}.webp` : '';
     }
   });
 
@@ -503,7 +503,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (!imageUrlInput.value || imageUrlInput.dataset.edited !== 'true') {
           const defaultImgPath = activeSiteConfig.files.defaultImage;
           const baseDir = defaultImgPath.substring(0, defaultImgPath.lastIndexOf('/') + 1);
-          imageUrlInput.value = `${baseDir}${slugInput.value}.png`;
+          imageUrlInput.value = `${baseDir}${slugInput.value}.webp`;
         }
       }
 
