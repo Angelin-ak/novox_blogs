@@ -5,7 +5,7 @@
 // ----------------------------------------------------------------------
 // PRODUCTION CONFIGURATION:
 // Replace this with your actual Render live URL once your backend is hosted:
-const PRODUCTION_BACKEND_URL = 'https://novox-blogs-api.onrender.com';
+const PRODUCTION_BACKEND_URL = 'https://novox-blogs.onrender.com';
 // ----------------------------------------------------------------------
 
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
