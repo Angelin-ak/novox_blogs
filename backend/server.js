@@ -17,7 +17,7 @@ const PORT = process.env.PORT || 3000;
 
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
-app.use(express.static('public'));
+app.use(express.static(path.join(__dirname, '../frontend')));
 
 // Load sites configuration
 let sitesConfig = {};
@@ -758,6 +758,10 @@ app.post('/api/publish', authenticate, async (req, res) => {
       .replaceAll('{{IMAGE}}', finalImageName)
       .replaceAll('{{CONTENT}}', finalBodyHtml)
       .replaceAll('{{FILENAME}}', newFilename);
+
+    if (siteId === 'novox_edtech') {
+      compiledPage = compiledPage.replace('<div class="tp-breadcrumb__bg"></div>', '');
+    }
 
     // Dynamically replace hardcoded date and author in the template's meta section
     compiledPage = compiledPage.replace(
