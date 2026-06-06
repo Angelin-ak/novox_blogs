@@ -755,7 +755,8 @@ app.post('/api/publish', authenticate, async (req, res) => {
       .replaceAll('{{DESCRIPTION}}', description)
       .replaceAll('{{CATEGORY}}', category)
       .replaceAll('{{IMAGE}}', finalImageName)
-      .replaceAll('{{CONTENT}}', finalBodyHtml);
+      .replaceAll('{{CONTENT}}', finalBodyHtml)
+      .replaceAll('{{FILENAME}}', newFilename);
 
     // Dynamically replace hardcoded date and author in the template's meta section
     compiledPage = compiledPage.replace(
@@ -1127,11 +1128,37 @@ app.get('/api/blogs-image', async (req, res) => {
     const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${normalizedPath}`;
     console.log(`Proxying image for ${siteId} from GitHub raw: ${url}...`);
     
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       headers: {
         'Authorization': `token ${token}`
       }
     });
+
+    if (!response.ok && response.status === 404) {
+      let altPath = null;
+      if (imagePath.startsWith('images/')) {
+        altPath = 'Images/' + imagePath.substring(7);
+      } else if (imagePath.startsWith('Images/')) {
+        altPath = 'images/' + imagePath.substring(7);
+      } else if (imagePath.includes('/images/')) {
+        altPath = imagePath.replace('/images/', '/Images/');
+      } else if (imagePath.includes('/Images/')) {
+        altPath = imagePath.replace('/Images/', '/images/');
+      }
+
+      if (altPath) {
+        const altUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${altPath}`;
+        console.log(`Proxying image (alt case correction) for ${siteId} from GitHub raw: ${altUrl}...`);
+        const altResponse = await fetch(altUrl, {
+          headers: {
+            'Authorization': `token ${token}`
+          }
+        });
+        if (altResponse.ok) {
+          response = altResponse;
+        }
+      }
+    }
 
     if (!response.ok) {
       throw new Error(`GitHub raw returned status ${response.status}`);
