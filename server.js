@@ -735,6 +735,7 @@ app.post('/api/publish', authenticate, async (req, res) => {
       return res.status(500).json({ error: 'GitHub Integration is not configured for the active website.' });
     }
 
+    const newFilename = `${slug}.html`;
     const octokit = new Octokit({ auth: token });
 
     // Fetch Template
@@ -784,7 +785,6 @@ app.post('/api/publish', authenticate, async (req, res) => {
     };
     compiledPage += `\n<!-- SEO_METADATA: ${JSON.stringify(metaBlock)} -->\n`;
 
-    const newFilename = `${slug}.html`;
     const gridPage = config.files.gridPage;
 
     // Fetch gridPage
