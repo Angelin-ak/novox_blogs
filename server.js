@@ -759,6 +759,10 @@ app.post('/api/publish', authenticate, async (req, res) => {
       .replaceAll('{{CONTENT}}', finalBodyHtml)
       .replaceAll('{{FILENAME}}', newFilename);
 
+    if (siteId === 'novox_edtech') {
+      compiledPage = compiledPage.replace('<div class="tp-breadcrumb__bg"></div>', '');
+    }
+
     // Dynamically replace hardcoded date and author in the template's meta section
     compiledPage = compiledPage.replace(
       /(<i\s+class=["']fa-light fa-calendar-days["']><\/i>)\s*[^<]+/gi,
