@@ -2,10 +2,15 @@
 // Novox Blog Verification Dashboard - Client Controller (ES6)
 // -------------------------------------------------------------
 
-// Global Passcode Authentication Gate & Fetch Interceptor
+// ----------------------------------------------------------------------
+// PRODUCTION CONFIGURATION:
+// Replace this with your actual Render live URL once your backend is hosted:
+const PRODUCTION_BACKEND_URL = 'https://novox-blogs-api.onrender.com';
+// ----------------------------------------------------------------------
+
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
   ? `${window.location.protocol}//${window.location.host}`
-  : 'http://localhost:3000'; // Change to your Render API URL when live (e.g., 'https://novox-admin-api.onrender.com')
+  : PRODUCTION_BACKEND_URL;
 
 const originalFetch = window.fetch;
 window.fetch = async function(url, options = {}) {
