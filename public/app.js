@@ -256,7 +256,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Set default Author and Landing URL on parameters
   if (authorInput) {
-    authorInput.value = activeSiteId === 'novox_core' ? 'Novoxed Tech LLP' : 'Novox Expert';
+    authorInput.value = activeSiteId === 'novox_core' ? 'novox expert' : 'Novox Expert';
   }
   if (landingUrlInput) {
     landingUrlInput.value = activeSiteConfig.defaultLandingUrl;
@@ -633,6 +633,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       loadedOriginalDate = null;
       loadedOriginalFilename = null;
       generatorForm.reset();
+      if (authorInput) {
+        authorInput.value = activeSiteId === 'novox_core' ? 'novox expert' : 'Novox Expert';
+      }
+      if (landingUrlInput) {
+        landingUrlInput.value = activeSiteConfig.defaultLandingUrl;
+      }
       slugInput.disabled = false;
       slugInput.dataset.edited = 'false';
       landingUrlInput.dataset.edited = 'false';
@@ -699,6 +705,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         loadedOriginalDate = null;
         loadedOriginalFilename = null;
         generatorForm.reset();
+        if (authorInput) {
+          authorInput.value = activeSiteId === 'novox_core' ? 'novox expert' : 'Novox Expert';
+        }
+        if (landingUrlInput) {
+          landingUrlInput.value = activeSiteConfig.defaultLandingUrl;
+        }
         slugInput.dataset.edited = 'false';
         landingUrlInput.dataset.edited = 'false';
         imageUrlInput.dataset.edited = 'false';
