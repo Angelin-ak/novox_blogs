@@ -33,25 +33,27 @@
 }
 
 body {
-  background-color: var(--bg-color);
+  background-color: #050505;
   background-image: 
-    radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.15) 0px, transparent 50%),
-    radial-gradient(at 100% 100%, rgba(59, 130, 246, 0.15) 0px, transparent 50%);
+    radial-gradient(ellipse at top right, rgba(59, 130, 246, 0.08), transparent 40%),
+    radial-gradient(ellipse at bottom left, rgba(16, 185, 129, 0.05), transparent 40%),
+    radial-gradient(circle at 50% 80%, rgba(255, 106, 0, 0.05), transparent 30%);
   background-attachment: fixed;
   color: var(--text-color);
   font-family: var(--font-family);
   min-height: 100vh;
   overflow-x: hidden;
+  letter-spacing: -0.01em;
 }
 
 /* Glassmorphism utility card */
 .glass-card {
-  background: var(--panel-bg);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid var(--border-color);
-  border-radius: 16px;
-  box-shadow: var(--glass-shadow);
+  background: rgba(15, 23, 42, 0.45);
+  backdrop-filter: blur(24px) saturate(180%);
+  -webkit-backdrop-filter: blur(24px) saturate(180%);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 20px;
+  box-shadow: 0 4px 24px -1px rgba(0,0,0,0.15), inset 0 1px 0 0 rgba(255,255,255,0.05);
   padding: 24px;
 }
 
@@ -88,14 +90,15 @@ body {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+  background: linear-gradient(135deg, var(--secondary-color), var(--primary-color));
   color: #fff;
-  box-shadow: 0 4px 15px var(--primary-glow);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.2), inset 0 1px 0 rgba(255,255,255,0.15);
 }
 
 .btn-primary:hover:not(:disabled) {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.5);
+  box-shadow: 0 6px 20px rgba(59, 130, 246, 0.4), inset 0 1px 0 rgba(255,255,255,0.2);
+  filter: brightness(1.1);
 }
 
 .btn-secondary {
@@ -157,24 +160,25 @@ input[type="password"],
 input[type="date"],
 select,
 textarea {
-  background: rgba(15, 23, 42, 0.5);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  color: var(--text-color);
-  padding: 12px;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  color: #f1f5f9;
+  padding: 12px 14px;
   font-family: var(--font-family);
   font-size: 14px;
-  transition: var(--transition);
+  transition: all 0.3s ease;
   width: 100%;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
 }
 
 input:focus,
 select:focus,
 textarea:focus {
   outline: none;
-  border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px var(--primary-glow);
-  background: rgba(15, 23, 42, 0.8);
+  border-color: rgba(99, 102, 241, 0.6);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15), inset 0 2px 4px rgba(0,0,0,0.2);
+  background: rgba(15, 23, 42, 0.6);
 }
 
 textarea {
@@ -886,6 +890,18 @@ textarea {
   background: rgba(17, 24, 39, 0.6);
 }
 
+/* Novox Kalyan card specific glow and header border */
+.portal-card.kalyan-card::before {
+  background: linear-gradient(90deg, #ff6a00, #ff8c3a);
+}
+
+.portal-card.kalyan-card:hover {
+  transform: translateY(-8px);
+  border-color: rgba(255, 106, 0, 0.4);
+  box-shadow: 0 20px 40px rgba(255, 106, 0, 0.12), var(--glass-shadow);
+  background: rgba(17, 24, 39, 0.6);
+}
+
 .portal-card .card-icon-wrap {
   width: 80px;
   height: 80px;
@@ -909,6 +925,12 @@ textarea {
   font-size: 36px;
   color: #34d399;
   text-shadow: 0 0 12px rgba(52, 211, 153, 0.4);
+}
+
+.portal-card.kalyan-card .card-icon-wrap i {
+  font-size: 36px;
+  color: #ff8c3a;
+  text-shadow: 0 0 12px rgba(255, 106, 0, 0.4);
 }
 
 .portal-card:hover .card-icon-wrap {
@@ -949,6 +971,12 @@ textarea {
   background: rgba(16, 185, 129, 0.1);
   color: #34d399;
   border: 1px solid rgba(16, 185, 129, 0.2);
+}
+
+.portal-card.kalyan-card .badge-status {
+  background: rgba(255, 106, 0, 0.1);
+  color: #ff8c3a;
+  border: 1px solid rgba(255, 106, 0, 0.2);
 }
 
 .portal-card .launch-btn {

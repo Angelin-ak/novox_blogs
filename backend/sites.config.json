@@ -101,5 +101,57 @@
       "glowColor": "rgba(16, 185, 129, 0.15)",
       "accentColor": "#34d399"
     }
+  },
+  "novox_kalyan": {
+    "displayName": "Novox Kalyan",
+    "niche": "Jewellery Manufacturing & Engineering Machinery Manufacturer",
+    "domain": "https://kalyanjewellerymachines.com",
+    "titleSuffix": " | Kalyan Engineering Corporation",
+    "icon": "fa-solid fa-industry",
+    "defaultLandingUrl": "services.html",
+    "git": {
+      "ownerEnvVar": "KALYAN_GITHUB_OWNER",
+      "repoEnvVar": "KALYAN_GITHUB_REPO",
+      "branchEnvVar": "KALYAN_GITHUB_BRANCH",
+      "tokenEnvVar": "KALYAN_GITHUB_TOKEN"
+    },
+    "files": {
+      "template": "blog-template-v2.html",
+      "gridPage": "blog.html",
+      "sitemap": "sitemap.xml",
+      "defaultImage": "assets/images/blog/details/blog-details-02.png"
+    },
+    "layout": {
+      "gridMarker": "<div class=\"rs-postbox-wrapper row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4\">",
+      "contentStartKey": "<div class=\"rs-postbox-details-content\">",
+      "contentEndKey": "<!-- <div class=\"col-xl-4 col-lg-4\">"
+    },
+    "categories": [
+      {"name": "Future Tech", "url": "services.html"},
+      {"name": "Buying Guide", "url": "services.html"},
+      {"name": "Industry Efficiency", "url": "services.html"},
+      {"name": "Technology", "url": "services.html"},
+      {"name": "Maintenance", "url": "services.html"},
+      {"name": "Equipment", "url": "services.html"},
+      {"name": "Company", "url": "about.html"},
+      {"name": "Manufacture", "url": "services.html"}
+    ],
+    "seo": {
+      "requireFaq": false,
+      "requireConclusion": true,
+      "headingTag": "h3",
+      "subheadingTag": "h4",
+      "ctaHtml": "<div class=\"rs-postbox-comment-btn\" style=\"margin-top: 30px;\">\n  <a class=\"rs-btn has-theme-orange\" href=\"contact.html\">Contact Us Now</a>\n</div>",
+      "ctaClass": "rs-postbox-comment-btn",
+      "ctaAnchorClass": "rs-btn",
+      "ctaTextPattern": ["contact", "quote", "machinery", "order", "manufacture", "us", "now", "talk"]
+    },
+    "theme": {
+      "background": "#ffffff",
+      "cardBackground": "rgba(0, 0, 0, 0.02)",
+      "primaryColor": "#ff6a00",
+      "glowColor": "rgba(255, 106, 0, 0.15)",
+      "accentColor": "#ff9a3c"
+    }
   }
 }

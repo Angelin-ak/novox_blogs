@@ -9,7 +9,7 @@ const PRODUCTION_BACKEND_URL = 'https://novox-blogs.onrender.com';
 // ----------------------------------------------------------------------
 
 const API_BASE_URL = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1'
-  ? `${window.location.protocol}//${window.location.host}`
+  ? `http://localhost:3003`
   : PRODUCTION_BACKEND_URL;
 
 const originalFetch = window.fetch;
@@ -270,7 +270,13 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Set default Author and Landing URL on parameters
   if (authorInput) {
-    authorInput.value = activeSiteId === 'novox_core' ? 'novox expert' : 'Novox Expert';
+    if (activeSiteId === 'novox_core') {
+      authorInput.value = 'novox expert';
+    } else if (activeSiteId === 'novox_kalyan') {
+      authorInput.value = 'Kalyan';
+    } else {
+      authorInput.value = 'Novox Expert';
+    }
   }
   if (landingUrlInput) {
     landingUrlInput.value = activeSiteConfig.defaultLandingUrl;
@@ -626,7 +632,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (data.raw_image_url) {
         sidebarImagePreview.src = data.raw_image_url.startsWith('http') || data.raw_image_url.startsWith('data:')
           ? data.raw_image_url
-          : `${API_BASE_URL}${data.raw_image_url}`;
+          : `${API_BASE_URL}${data.raw_image_url}&token=password123`;
         imagePreviewThumbnailWrap.style.display = 'block';
         regenerateImageBtn.style.display = 'block';
       } else {
@@ -843,8 +849,9 @@ document.addEventListener('DOMContentLoaded', async () => {
     const slug = slugInput.value || 'untitled-post';
 
     const isCore = activeSiteId === 'novox_core';
+    const isKalyan = activeSiteId === 'novox_kalyan';
     const isDarkTheme = activeSiteConfig.theme.background !== '#ffffff';
-    previewBody.style.background = isCore ? '#000000' : '#ffffff';
+    previewBody.style.background = activeSiteConfig.theme.background || '#ffffff';
     previewBody.style.padding = '0';
 
     browserUrl.textContent = `${activeSiteConfig.domain}/${slug}.html`;
@@ -877,15 +884,63 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (generatedImageBase64) {
       imgSrc = `data:${mimeType};base64,${generatedImageBase64}`;
     } else if (image && (image.startsWith('assets/') || image.startsWith('Images/') || (!image.startsWith('http') && !image.startsWith('data:')))) {
-      imgSrc = `${API_BASE_URL}/api/blogs-image?path=${encodeURIComponent(image)}&siteId=${activeSiteId}`;
+      imgSrc = `${API_BASE_URL}/api/blogs-image?path=${encodeURIComponent(image)}&siteId=${activeSiteId}&token=password123`;
     } else {
       imgSrc = image || 'https://placehold.co/800x450/e2e8f0/64748b?text=Featured+Image';
     }
 
     // Render themed mock site frame wrapper
-    previewBody.innerHTML = `
-      <style>
-        .sim-wrapper {
+    if (isKalyan) {
+      previewBody.innerHTML = `
+        <style>
+          .rs-inner-blog { padding: 40px; background: #fff; color: #333; font-family: 'Inter', sans-serif; }
+          .blog-details .bs-img img { width: 100%; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+          .blog-details .title { font-size: 28px; font-weight: 700; color: #0a0a0a; margin-bottom: 15px; }
+          .blog-details .bs-meta { margin-bottom: 20px; }
+          .blog-details .bs-meta ul { display: flex; gap: 20px; list-style: none; padding: 0; margin: 0; font-size: 14px; color: #666; font-weight: 500; }
+          .blog-details .bs-meta ul li i { color: #f26522; margin-right: 5px; }
+          .blog-details .blog-desc { font-size: 16px; line-height: 1.8; color: #444; }
+          .blog-details .blog-desc h2, .blog-details .blog-desc h3 { color: #222; margin-top: 25px; margin-bottom: 15px; font-weight: 600; }
+          .blog-details .blog-desc p { margin-bottom: 20px; }
+          .blog-details .blog-desc ul { margin-left: 20px; margin-bottom: 20px; }
+          .blog-details .blog-desc li { margin-bottom: 10px; }
+          .blog-details .blog-desc blockquote { border-left: 4px solid #f26522; margin: 20px 0; font-style: italic; background: #f9f9f9; padding: 20px; border-radius: 4px; }
+          .blog-details .blog-desc blockquote p { margin-bottom: 0; }
+          .blog-details .blog-desc blockquote h3, .blog-details .blog-desc blockquote h5 { margin-top: 10px; color: #111; font-style: normal; }
+        </style>
+        <div class="rs-inner-blog">
+            <div style="max-width: 900px; margin: 0 auto;">
+                <div style="display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 12px; margin-bottom: 30px; font-family: 'Inter', sans-serif;">
+                  <div style="font-size: 20px; font-weight: 800; color: #f26522; text-transform: uppercase;">${activeSiteConfig.displayName}</div>
+                  <div style="display: flex; gap: 20px; font-size: 14px; font-weight: 600; color: #555;">
+                    <span>Home</span><span>About</span><span>Services</span><span style="color: #f26522; text-decoration: underline;">Blog</span>
+                  </div>
+                </div>
+                <div class="blog-details">
+                    <div class="bs-img">
+                        <img src="${imgSrc}" alt="${title}">
+                    </div>
+                    <div class="blog-full">
+                        <div class="bs-meta">
+                            <ul>
+                                <li><i>👤</i> ${authorInput.value || 'Admin'}</li>
+                                <li><i>📅</i> ${formattedDate}</li>
+                                <li><i>🏷️</i> ${category || 'Manufacturing'}</li>
+                            </ul>
+                        </div>
+                        <h3 class="title">${title}</h3>
+                        <div class="blog-desc">
+                            ${content}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+      `;
+    } else {
+      previewBody.innerHTML = `
+        <style>
+          .sim-wrapper {
           background-color: ${activeSiteConfig.theme.background || '#ffffff'};
           color: ${isDarkTheme ? '#cbd5e1' : '#334155'};
           font-family: 'Inter', system-ui, -apple-system, sans-serif;
@@ -984,12 +1039,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         ` : ''}
 
         /* Company Styled CTA Button styling */
-        .tp-contact-btn, .cta-btn-wrapper {
+        .tp-contact-btn, .cta-btn-wrapper, .rs-postbox-comment-btn {
           text-align: center;
           margin-top: 30px;
           margin-bottom: 30px;
         }
-        .tp-btn-inner, .rr-btn {
+        .tp-btn-inner, .rr-btn, .rs-btn {
           display: inline-block;
           font-size: 16px;
           font-weight: 600;
@@ -1001,7 +1056,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           box-shadow: 0 4px 12px ${activeSiteConfig.theme.glowColor};
           transition: all 0.2s ease-in-out;
         }
-        .tp-btn-inner:hover, .rr-btn:hover {
+        .tp-btn-inner:hover, .rr-btn:hover, .rs-btn:hover {
           background-color: ${activeSiteConfig.theme.accentColor};
           transform: translateY(-2px);
           box-shadow: 0 6px 16px ${activeSiteConfig.theme.glowColor};
@@ -1010,12 +1065,12 @@ document.addEventListener('DOMContentLoaded', async () => {
       
       <div class="sim-wrapper">
         <div class="sim-header">
-          <div class="sim-logo">${isCore ? 'NOVOX CORE' : 'NOVOX EDTECH'}</div>
+          <div class="sim-logo">${activeSiteConfig.displayName.toUpperCase()}</div>
           <div class="sim-nav">
             <span>Home</span>
             <span>About</span>
-            <span>${isCore ? 'Services' : 'Courses'}</span>
-            <span style="color: ${isCore ? '#10b981' : '#2563eb'}; text-decoration: underline;">Blog</span>
+            <span>${isCore || isKalyan ? 'Services' : 'Courses'}</span>
+            <span style="color: ${activeSiteConfig.theme.primaryColor}; text-decoration: underline;">Blog</span>
           </div>
         </div>
         
@@ -1038,6 +1093,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         </div>
       </div>
     `;
+    }
   };
 
   // Real-time SEO Validation checklist matching active site configurations

@@ -30,16 +30,19 @@ try {
   console.error('Failed to load sites.config.json:', err.message);
 }
 
-// Authentication Middleware (Enabled)
+// Authentication Middleware
 const authenticate = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const customHeader = req.headers['x-passcode'];
+  const queryToken = req.query.token;
   
   let passcode = '';
   if (customHeader) {
     passcode = customHeader;
   } else if (authHeader && authHeader.startsWith('Bearer ')) {
     passcode = authHeader.substring(7);
+  } else if (queryToken) {
+    passcode = queryToken;
   }
   
   const expectedPasscode = process.env.ADMIN_PASSCODE || 'novox2026';
@@ -403,6 +406,32 @@ function parseBlogCards(gridContent, siteId) {
       
       pos = nextAnchorEnd + 4;
     }
+  } else if (siteId === 'novox_kalyan') {
+    const chunks = gridContent.split('<article class="rs-postbox-item">');
+    for (let i = 1; i < chunks.length; i++) {
+      const chunk = chunks[i];
+      const endIdx = chunk.indexOf('</article>');
+      if (endIdx === -1) continue;
+      
+      const cardHtml = '<article class="rs-postbox-item">' + chunk.substring(0, endIdx + 10);
+      
+      const hrefMatch = cardHtml.match(/<a[^>]*href=["']([^"']+\.html)["']/i);
+      const filename = hrefMatch ? hrefMatch[1] : '';
+      
+      const titleMatch = cardHtml.match(/<h3 class=["']rs-postbox-title["']>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i);
+      const title = titleMatch ? titleMatch[1].replace(/<[^>]*>/g, '').trim() : '';
+      
+      const dateMatch = cardHtml.match(/<span class=["']rs-postbox-meta-text["']>[\s\S]*?<a[^>]*>([\s\S]*?)<\/a>/i);
+      const dateText = dateMatch ? dateMatch[1].replace(/<[^>]*>/g, '').replace(/\n/g, ' ').replace(/\s+/g, ' ').trim() : '';
+      
+      cards.push({
+        html: cardHtml.trim(),
+        filename,
+        title,
+        dateStr: dateText,
+        dateVal: parseBlogDate(dateText)
+      });
+    }
   } else {
     // Novox EdTech parsing
     while (true) {
@@ -511,6 +540,55 @@ function compileBlogCard(siteId, title, newFilename, finalImageName, category, a
                       </div>
                     </article>
                   </a>`;
+  } else if (siteId === 'novox_kalyan') {
+    return `                            <article class="rs-postbox-item">
+                                <div class="rs-postbox-thumb">
+                                    <a href="${newFilename}">
+                                        <img src="${finalImageName}"
+                                            alt="${title}" loading="lazy">
+                                    </a>
+                                    <div class="rs-postbox-tag">
+                                        <a href="${newFilename}">${category}</a>
+                                    </div>
+                                </div>
+                                <div class="rs-postbox-content">
+                                    <div class="rs-postbox-meta-list">
+                                        <div class="rs-postbox-meta-item">
+                                            <span class="rs-meta-text">By<a class="meta-author"
+                                                    href="${newFilename}">
+                                                    ${author}</a></span>
+                                        </div>
+                                        <div class="rs-postbox-meta-item">
+                                            <span class="rs-postbox-meta-text"><a href="${newFilename}">${date}</a></span>
+                                        </div>
+                                    </div>
+                                    <h3 class="rs-postbox-title">
+                                        <a href="${newFilename}">${title}</a>
+                                    </h3>
+                                    <div class="rs-postbox-text">
+                                        <p></p>
+                                    </div>
+                                    <div class="rs-postbox-btn">
+                                        <a class="rs-btn has-theme-orange has-icon has-bg"
+                                            href="${newFilename}">Continue Reading
+                                            <span class="icon-box">
+                                                <svg class="icon-first" xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 32 32">
+                                                    <path
+                                                        d="M31.71,15.29l-10-10L20.29,6.71,28.59,15H0v2H28.59l-8.29,8.29,1.41,1.41,10-10A1,1,0,0,0,31.71,15.29Z">
+                                                    </path>
+                                                </svg>
+                                                <svg class="icon-second" xmlns="http://www.w3.org/2000/svg"
+                                                    viewBox="0 0 32 32">
+                                                    <path
+                                                        d="M31.71,15.29l-10-10L20.29,6.71,28.59,15H0v2H28.59l-8.29,8.29,1.41,1.41,10-10A1,1,0,0,0,31.71,15.29Z">
+                                                    </path>
+                                                </svg>
+                                            </span>
+                                        </a>
+                                    </div>
+                                </div>
+                            </article>`;
   } else {
     return `               <!-- Post: ${title} -->
                <div class="col-xl-4 col-lg-6 col-md-6 mb-40 grid-item ${categoryClass}">
@@ -575,6 +653,21 @@ function parseBlogCardForDetails(blogsHtml, filename, siteId) {
       }
       
       const dateMatch = cardChunk.match(/<span\s+class=["']date has-left-line["'][^>]*>([\s\S]*?)<\/span>/i);
+      if (dateMatch) {
+        date = dateMatch[1].trim();
+      }
+      
+      const imgMatch = cardChunk.match(/<img\s+[^>]*src=["']([^"']+)["']/i);
+      if (imgMatch) {
+        imageFromBlogsHtml = imgMatch[1].trim();
+      }
+    } else if (siteId === 'novox_kalyan') {
+      const authorMatch = cardChunk.match(/<span\s+class=["']rs-meta-text["']>By<a[^>]*>\s*([\s\S]*?)<\/a><\/span>/i);
+      if (authorMatch) {
+        author = authorMatch[1].trim();
+      }
+      
+      const dateMatch = cardChunk.match(/<span\s+class=["']rs-postbox-meta-text["']><a[^>]*>\s*([\s\S]*?)<\/a><\/span>/i);
       if (dateMatch) {
         date = dateMatch[1].trim();
       }
@@ -780,7 +873,8 @@ app.post('/api/publish', authenticate, async (req, res) => {
       .replaceAll('{{CATEGORY}}', category)
       .replaceAll('{{IMAGE}}', finalImageName)
       .replaceAll('{{CONTENT}}', finalBodyHtml)
-      .replaceAll('{{FILENAME}}', newFilename);
+      .replaceAll('{{FILENAME}}', newFilename)
+      .replaceAll('{{TITLE_SUFFIX}}', config.titleSuffix || '');
 
     if (siteId === 'novox_edtech') {
       compiledPage = compiledPage.replace('<div class="tp-breadcrumb__bg"></div>', '');
@@ -1152,14 +1246,41 @@ app.get('/api/blogs-image', async (req, res) => {
       normalizedPath = imagePath.replace(/^images\//i, 'Images/');
     }
 
-    const url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${normalizedPath}`;
-    console.log(`Proxying image for ${siteId} from GitHub raw: ${url}...`);
+    // Try fetching from media.githubusercontent.com first (for Git LFS files)
+    let url = `https://media.githubusercontent.com/media/${owner}/${repo}/${branch}/${normalizedPath}`;
+    console.log(`Proxying image (LFS check) for ${siteId}: ${url}...`);
     
     let response = await fetch(url, {
-      headers: {
-        'Authorization': `token ${token}`
-      }
+      headers: { 'Authorization': `token ${token}` }
     });
+
+    if (!response.ok) {
+      // Fallback to raw.githubusercontent.com for non-LFS files
+      url = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${normalizedPath}`;
+      console.log(`Proxying image for ${siteId} from GitHub raw: ${url}...`);
+      response = await fetch(url, {
+        headers: { 'Authorization': `token ${token}` }
+      });
+    }
+
+    // Check if the response is STILL an LFS pointer (sometimes media.githubusercontent doesn't work if not explicitly enabled, but raw returns the pointer text)
+    if (response.ok) {
+      const clonedResponse = response.clone();
+      const firstChunk = await clonedResponse.text();
+      if (firstChunk.startsWith('version https://git-lfs.github.com/spec/v1')) {
+        console.log(`[WARNING] GitHub Raw returned an LFS pointer instead of the actual file! We need to use the GitHub API to resolve the download_url.`);
+        // Note: The ideal way to get an LFS file natively is via GitHub API /contents
+        const apiResponse = await fetch(`https://api.github.com/repos/${owner}/${repo}/contents/${normalizedPath}?ref=${branch}`, {
+           headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' }
+        });
+        if (apiResponse.ok) {
+           const apiData = await apiResponse.json();
+           if (apiData.download_url) {
+             response = await fetch(apiData.download_url);
+           }
+        }
+      }
+    }
 
     if (!response.ok && response.status === 404) {
       let altPath = null;
@@ -1490,6 +1611,38 @@ app.get('/api/blogs/:filename', authenticate, async (req, res) => {
             }
             content_html = extracted;
           }
+        }
+      }
+    } else if (siteId === 'novox_kalyan') {
+      const startKey = config.layout.contentStartKey || '<div class="rs-postbox-details-content">';
+      const startIndex = contentNormalized.indexOf(startKey);
+      
+      if (startIndex !== -1) {
+        let depth = 1;
+        let scanPos = startIndex + startKey.length;
+        let endPos = -1;
+        
+        while (scanPos < contentNormalized.length) {
+          const nextOpen = contentNormalized.indexOf('<div', scanPos);
+          const nextClose = contentNormalized.indexOf('</div', scanPos);
+          
+          if (nextOpen === -1 && nextClose === -1) break;
+          
+          if (nextOpen !== -1 && (nextClose === -1 || nextOpen < nextClose)) {
+            depth++;
+            scanPos = nextOpen + 4;
+          } else {
+            depth--;
+            scanPos = nextClose + 6;
+            if (depth === 0) {
+              endPos = nextClose;
+              break;
+            }
+          }
+        }
+        
+        if (endPos !== -1) {
+          content_html = contentNormalized.substring(startIndex + startKey.length, endPos).trim();
         }
       }
     } else {
